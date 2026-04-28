@@ -18,7 +18,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -41,13 +41,13 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
         <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-widest">{card.tag}</span>
         <div className="flex items-center gap-1">
             <Clock size={10} className="text-slate-400" />
-            <span className="text-[8px] font-bold text-slate-400 uppercase">{card.logs ? card.logs.length : 0} İşlem</span>
+            <span className="text-[8px] font-bold text-slate-400 uppercase">{card.logs ? card.logs.length : 0}</span>
         </div>
       </div>
       <h3 className="font-bold text-slate-800 text-sm leading-snug pr-6 pointer-events-none">{card.title}</h3>
       <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50 pointer-events-none">
         <span className="text-[9px] font-bold text-rose-600 italic">{card.deadline || 'Süresiz'}</span>
-        <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-[10px] font-bold text-rose-600 border border-rose-100 uppercase">
+        <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-[10px] font-bold text-rose-600 border border-rose-100 uppercase font-black">
           {(card.assignee || 'K').charAt(0)}
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
   const [cards, setCards] = useState({ 
-    'c1': { id: 'c1', title: 'Kartı diğer sütunlara sürüklemeyi deneyin!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+    'c1': { id: 'c1', title: 'Hoş geldiniz! Boş sütunlara da taşıma yapabilirsiniz.', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Görev oluşturuldu", time: new Date().toLocaleTimeString()}] } 
   });
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
@@ -77,15 +77,10 @@ export default function App() {
     const pointerCollisions = pointerWithin(args);
     const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
     let overId = getFirstCollision(collisions, 'id');
-
     if (overId != null) {
-      if (overId in columns) {
-        return collisions;
-      }
+      if (overId in columns) return collisions;
       const columnId = Object.keys(columns).find((key) => columns[key].includes(overId));
-      if (columnId) {
-        overId = columnId;
-      }
+      if (columnId) overId = columnId;
     }
     return collisions;
   };
@@ -95,13 +90,11 @@ export default function App() {
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-
     const activeId = active.id;
     const overId = over.id;
-
     const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
     const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
-
+    
     if (!sourceCol || !destCol || sourceCol === destCol) return;
 
     setColumns((prev) => ({
@@ -109,6 +102,16 @@ export default function App() {
       [sourceCol]: prev[sourceCol].filter((id) => id !== activeId),
       [destCol]: [...prev[destCol], activeId],
     }));
+
+    // Kartın loguna taşıma işlemini ekle
+    setCards(prev => {
+        const card = prev[activeId];
+        const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString() };
+        return {
+            ...prev,
+            [activeId]: { ...card, logs: [newLog, ...(card.logs || [])] }
+        };
+    });
   };
 
   const handleDragEnd = (event) => {
@@ -140,7 +143,6 @@ export default function App() {
   const handleSave = () => {
     if (!formData.title) return;
     const newLog = { text: editingCard ? "Bilgiler güncellendi" : "Görev oluşturuldu", time: new Date().toLocaleTimeString() };
-    
     if (editingCard) {
       setCards(prev => ({
         ...prev,
@@ -178,11 +180,13 @@ export default function App() {
           onDragEnd={handleDragEnd}
         >
           {Object.keys(columns).map(colId => (
-            <div key={colId} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
+            <div key={colId} className="w-[320px] shrink-0 bg-white/40 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
               <h2 className="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-6 px-4">{colId}</h2>
-              <div className="flex-1 overflow-y-auto min-h-[200px]">
-                <SortableContext items={columns[colId]} strategy={verticalListSortingStrategy}>
-                  {columns[colId].map(id => (
+              
+              {/* BOŞ ALAN SORUNUNU ÇÖZEN DROP ALANI */}
+              <SortableContext id={colId} items={columns[colId]} strategy={verticalListSortingStrategy}>
+                <div className="flex-1 overflow-y-auto min-h-[300px] transition-colors rounded-2xl p-2">
+                   {columns[colId].map(id => (
                     <SortableCard 
                         key={id} id={id} card={cards[id]} 
                         onDelete={(cardId) => setColumns(prev => {
@@ -191,8 +195,12 @@ export default function App() {
                         onEdit={(card) => handleOpenModal(colId, card)} 
                     />
                   ))}
-                </SortableContext>
-              </div>
+                  {columns[colId].length === 0 && (
+                    <div className="h-full border-2 border-dashed border-slate-100 rounded-3xl flex items-center justify-center text-[10px] font-bold text-slate-300 uppercase tracking-widest">Sürükle Bırak</div>
+                  )}
+                </div>
+              </SortableContext>
+
               <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2 font-bold"><Plus size={14}/> Yeni Görev</button>
             </div>
           ))}
@@ -212,7 +220,7 @@ export default function App() {
             <h2 className="text-2xl font-black italic mb-8">Görev <span className="text-rose-600">Yönetimi</span></h2>
             <div className="flex gap-8 overflow-hidden">
                 <div className="flex-1 space-y-4">
-                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10" onChange={e => setFormData({...formData, title: e.target.value})}/>
+                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10 transition-all" onChange={e => setFormData({...formData, title: e.target.value})}/>
                     <div className="grid grid-cols-2 gap-4">
                         <select value={formData.tag} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
                             <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option>
@@ -227,12 +235,14 @@ export default function App() {
                 </div>
                 {editingCard && (
                     <div className="w-64 border-l border-slate-100 pl-6 flex flex-col">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Görev Geçmişi</h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> İşlem Geçmişi</h3>
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                             {(editingCard.logs || []).map((log, i) => (
-                                <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-1 rounded-r-lg">
-                                    <p className="font-bold text-slate-700 leading-tight">{log.text}</p>
-                                    <span className="text-slate-400 font-medium">{log.time}</span>
+                                <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-2 rounded-r-lg">
+                                    <p className="font-bold text-slate-700 leading-tight flex items-center gap-1">
+                                        {log.text.includes('➔') ? <><ArrowRight size={10} className="text-rose-500" /> {log.text}</> : log.text}
+                                    </p>
+                                    <span className="text-slate-400 font-medium text-[9px]">{log.time}</span>
                                 </div>
                             ))}
                         </div>
