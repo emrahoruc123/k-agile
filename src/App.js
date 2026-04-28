@@ -58,10 +58,20 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
 // --- ANA UYGULAMA ---
 export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
-  const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
-  const [cards, setCards] = useState({ 
-    'c1': { id: 'c1', title: 'Boş sütunlara taşımak artık çok daha kolay!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Görev oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+  
+  // Sütunların boş kalmaması için varsayılan kartlar
+  const [columns, setColumns] = useState({ 
+    'YAPILACAK': ['c1'], 
+    'İŞLEMDE': ['c2'], 
+    'TAMAMLANDI': ['c3'] 
   });
+
+  const [cards, setCards] = useState({ 
+    'c1': { id: 'c1', title: 'Düzenlemek için tıkla (Yapılacak)', tag: 'GÖREV', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Sistem tarafından oluşturuldu", time: new Date().toLocaleTimeString()}] },
+    'c2': { id: 'c2', title: 'Düzenlemek için tıkla (İşlemde)', tag: 'DEV', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Sistem tarafından oluşturuldu", time: new Date().toLocaleTimeString()}] },
+    'c3': { id: 'c3', title: 'Düzenlemek için tıkla (Tamamlandı)', tag: 'UI/UX', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Sistem tarafından oluşturuldu", time: new Date().toLocaleTimeString()}] }
+  });
+
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
   const [editingCard, setEditingCard] = useState(null);
@@ -77,7 +87,6 @@ export default function App() {
     const pointerCollisions = pointerWithin(args);
     const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
     let overId = getFirstCollision(collisions, 'id');
-    
     if (overId != null) {
       if (overId in columns) return collisions;
       const columnId = Object.keys(columns).find((key) => columns[key].includes(overId));
@@ -99,11 +108,11 @@ export default function App() {
     
     if (!sourceCol || !destCol || sourceCol === destCol) return;
 
-    setColumns((prev) => {
-      const sourceItems = prev[sourceCol].filter((id) => id !== activeId);
-      const destItems = [...prev[destCol], activeId];
-      return { ...prev, [sourceCol]: sourceItems, [destCol]: destItems };
-    });
+    setColumns((prev) => ({
+      ...prev,
+      [sourceCol]: prev[sourceCol].filter((id) => id !== activeId),
+      [destCol]: [...prev[destCol], activeId],
+    }));
 
     setCards(prev => {
         const card = prev[activeId];
@@ -133,7 +142,8 @@ export default function App() {
       setFormData({ title: card.title, tag: card.tag, assignee: card.assignee, deadline: card.deadline });
     } else {
       setEditingCard(null);
-      setFormData({ title: '', tag: 'GÖREV', assignee: user, deadline: '' });
+      // "value" değil "placeholder" kullanacağımız için state boş başlıyor
+      setFormData({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
     }
     setShowModal(true);
   };
@@ -167,49 +177,23 @@ export default function App() {
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
-        <DndContext 
-          sensors={sensors} 
-          collisionDetection={collisionDetectionStrategy} 
-          onDragStart={handleDragStart} 
-          onDragOver={handleDragOver} 
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {Object.keys(columns).map(colId => (
             <div key={colId} className="w-[320px] shrink-0 bg-white/40 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 h-full">
               <h2 className="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-6 px-4">{colId}</h2>
-              
               <SortableContext id={colId} items={columns[colId]} strategy={verticalListSortingStrategy}>
-                <div 
-                  className="flex-1 overflow-y-auto min-h-[500px] rounded-3xl p-2"
-                  style={{ touchAction: 'none' }}
-                >
+                <div className="flex-1 overflow-y-auto min-h-[300px] rounded-3xl p-2">
                    {columns[colId].map(id => (
-                    <SortableCard 
-                        key={id} id={id} card={cards[id]} 
-                        onDelete={(cardId) => setColumns(prev => {
-                            const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc;
-                        })} 
-                        onEdit={(card) => handleOpenModal(colId, card)} 
-                    />
+                    <SortableCard key={id} id={id} card={cards[id]} onDelete={(cardId) => setColumns(prev => {
+                        const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc;
+                    })} onEdit={(card) => handleOpenModal(colId, card)} />
                   ))}
-                  {columns[colId].length === 0 && (
-                    <div className="h-32 border-2 border-dashed border-slate-100 rounded-[2rem] flex items-center justify-center text-[10px] font-bold text-slate-200 uppercase tracking-widest pointer-events-none">
-                      Buraya Bırak
-                    </div>
-                  )}
                 </div>
               </SortableContext>
-
               <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2 font-bold"><Plus size={14}/> Yeni Görev</button>
             </div>
           ))}
-          <DragOverlay>
-            {activeId ? (
-              <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105">
-                <h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3>
-              </div>
-            ) : null}
-          </DragOverlay>
+          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
         </DndContext>
       </main>
 
@@ -219,14 +203,38 @@ export default function App() {
             <h2 className="text-2xl font-black italic mb-8">Görev <span className="text-rose-600">Yönetimi</span></h2>
             <div className="flex gap-8 overflow-hidden">
                 <div className="flex-1 space-y-4">
-                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10 transition-all" onChange={e => setFormData({...formData, title: e.target.value})}/>
+                    {/* Placeholder kullanarak tıklandığında silinen yazı yapısı */}
+                    <input 
+                      type="text" 
+                      placeholder="Görev Başlığı Giriniz..." 
+                      value={formData.title} 
+                      className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10 transition-all" 
+                      onChange={e => setFormData({...formData, title: e.target.value})}
+                    />
                     <div className="grid grid-cols-2 gap-4">
-                        <select value={formData.tag} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
-                            <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option>
+                        <select 
+                          value={formData.tag} 
+                          className="p-4 bg-slate-50 rounded-2xl outline-none" 
+                          onChange={e => setFormData({...formData, tag: e.target.value})}
+                        >
+                            <option value="GÖREV">GÖREV</option>
+                            <option value="UI/UX">UI/UX</option>
+                            <option value="DEV">DEV</option>
                         </select>
-                        <input type="text" placeholder="Sorumlu" value={formData.assignee} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, assignee: e.target.value})}/>
+                        <input 
+                          type="text" 
+                          placeholder="Sorumlu Kişi..." 
+                          value={formData.assignee} 
+                          className="p-4 bg-slate-50 rounded-2xl outline-none" 
+                          onChange={e => setFormData({...formData, assignee: e.target.value})}
+                        />
                     </div>
-                    <input type="date" value={formData.deadline} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, deadline: e.target.value})}/>
+                    <input 
+                      type="date" 
+                      value={formData.deadline} 
+                      className="w-full p-4 bg-slate-50 rounded-2xl outline-none" 
+                      onChange={e => setFormData({...formData, deadline: e.target.value})}
+                    />
                     <div className="flex gap-3 pt-4">
                         <button onClick={handleSave} className="flex-1 bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2"><Save size={18}/> Kaydet</button>
                         <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><Ban size={18}/> İptal</button>
