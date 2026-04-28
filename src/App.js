@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
 import {
-  DndContext, closestCorners, KeyboardSensor, PointerSensor, 
-  useSensor, useSensors, DragOverlay
+  DndContext, 
+  closestCorners, 
+  KeyboardSensor, 
+  PointerSensor, 
+  useSensor, 
+  useSensors, 
+  DragOverlay,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision
 } from '@dnd-kit/core';
 import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates, 
-  verticalListSortingStrategy, useSortable
+  arrayMove, 
+  SortableContext, 
+  sortableKeyboardCoordinates, 
+  verticalListSortingStrategy, 
+  useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban } from 'lucide-react';
@@ -50,7 +61,7 @@ export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
   const [cards, setCards] = useState({ 
-    'c1': { id: 'c1', title: 'Hoş geldiniz! Geçmişi görmek için tıklayın.', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+    'c1': { id: 'c1', title: 'Kartı diğer sütunlara sürüklemeyi deneyin!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
   });
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
@@ -63,29 +74,57 @@ export default function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // ÇARPIMA ALGILAMA ALGORİTMASI (Sütunlar arası geçişin kalbidir)
+  const collisionDetectionStrategy = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
+    let overId = getFirstCollision(collisions, 'id');
+
+    if (overId != null) {
+      if (overId in columns) {
+        return collisions;
+      }
+      const columnId = Object.keys(columns).find((key) => columns[key].includes(overId));
+      if (columnId) {
+        overId = columnId;
+      }
+    }
+    return collisions;
+  };
+
   const handleDragStart = (event) => setActiveId(event.active.id);
 
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const sourceCol = Object.keys(columns).find(key => columns[key].includes(active.id));
-    const destCol = (over.id in columns) ? over.id : Object.keys(columns).find(key => columns[key].includes(over.id));
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
+    const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
+
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-    setColumns(prev => ({
+
+    setColumns((prev) => ({
       ...prev,
-      [sourceCol]: prev[sourceCol].filter(id => id !== active.id),
-      [destCol]: [...prev[destCol], active.id]
+      [sourceCol]: prev[sourceCol].filter((id) => id !== activeId),
+      [destCol]: [...prev[destCol], activeId],
     }));
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    setActiveId(null);
-    if (!over) return;
-    const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
-    if (colId && active.id !== over.id) {
-      setColumns(prev => ({ ...prev, [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) }));
+    if (over && active.id !== over.id) {
+      const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
+      if (colId) {
+        setColumns(prev => ({
+          ...prev,
+          [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id))
+        }));
+      }
     }
+    setActiveId(null);
   };
 
   const handleOpenModal = (colId, card = null) => {
@@ -120,34 +159,52 @@ export default function App() {
   if (!user) {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Sisteme Giriş</button>
+        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Giriş Yap</button>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#fcfcfd] flex flex-col overflow-hidden font-sans">
-      <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100 shrink-0 text-slate-900">
+    <div className="h-screen bg-[#fcfcfd] flex flex-col overflow-hidden font-sans text-slate-900">
+      <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100 shrink-0">
         <div className="flex items-center gap-2 text-xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={24} /> K-<span className="text-rose-600">AGILE</span></div>
         <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={20}/></button>
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <DndContext 
+          sensors={sensors} 
+          collisionDetection={collisionDetectionStrategy} 
+          onDragStart={handleDragStart} 
+          onDragOver={handleDragOver} 
+          onDragEnd={handleDragEnd}
+        >
           {Object.keys(columns).map(colId => (
             <div key={colId} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
               <h2 className="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-6 px-4">{colId}</h2>
-              <div className="flex-1 overflow-y-auto min-h-[150px]">
+              <div className="flex-1 overflow-y-auto min-h-[200px]">
                 <SortableContext items={columns[colId]} strategy={verticalListSortingStrategy}>
-                  {columns[colId].map(id => <SortableCard key={id} id={id} card={cards[id]} onDelete={(cardId) => setColumns(prev => {
-                      const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc;
-                  })} onEdit={(card) => handleOpenModal(colId, card)} />)}
+                  {columns[colId].map(id => (
+                    <SortableCard 
+                        key={id} id={id} card={cards[id]} 
+                        onDelete={(cardId) => setColumns(prev => {
+                            const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc;
+                        })} 
+                        onEdit={(card) => handleOpenModal(colId, card)} 
+                    />
+                  ))}
                 </SortableContext>
               </div>
               <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2 font-bold"><Plus size={14}/> Yeni Görev</button>
             </div>
           ))}
-          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
+          <DragOverlay>
+            {activeId ? (
+              <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105">
+                <h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </main>
 
@@ -155,7 +212,6 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl border border-white flex flex-col max-h-[90vh]">
             <h2 className="text-2xl font-black italic mb-8">Görev <span className="text-rose-600">Yönetimi</span></h2>
-            
             <div className="flex gap-8 overflow-hidden">
                 <div className="flex-1 space-y-4">
                     <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10" onChange={e => setFormData({...formData, title: e.target.value})}/>
@@ -166,21 +222,15 @@ export default function App() {
                         <input type="text" placeholder="Sorumlu" value={formData.assignee} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, assignee: e.target.value})}/>
                     </div>
                     <input type="date" value={formData.deadline} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, deadline: e.target.value})}/>
-                    
                     <div className="flex gap-3 pt-4">
-                        <button onClick={handleSave} className="flex-1 bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2">
-                            <Save size={18}/> {editingCard ? 'Güncelle' : 'Kaydet'}
-                        </button>
-                        <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
-                            <Ban size={18}/> İptal
-                        </button>
+                        <button onClick={handleSave} className="flex-1 bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2"><Save size={18}/> Kaydet</button>
+                        <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><Ban size={18}/> İptal</button>
                     </div>
                 </div>
-
                 {editingCard && (
                     <div className="w-64 border-l border-slate-100 pl-6 flex flex-col">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Görev Geçmişi</h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                             {(editingCard.logs || []).map((log, i) => (
                                 <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-1 rounded-r-lg">
                                     <p className="font-bold text-slate-700 leading-tight">{log.text}</p>
