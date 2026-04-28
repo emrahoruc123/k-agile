@@ -1,48 +1,14 @@
 import React, { useState } from 'react';
 import {
-  DndContext, 
-  closestCorners, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors,
-  DragOverlay
+  DndContext, closestCorners, KeyboardSensor, PointerSensor, 
+  useSensor, useSensors, DragOverlay
 } from '@dnd-kit/core';
 import {
-  arrayMove, 
-  SortableContext, 
-  sortableKeyboardCoordinates, 
-  verticalListSortingStrategy, 
-  useSortable
+  arrayMove, SortableContext, sortableKeyboardCoordinates, 
+  verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, X, CheckCircle2, Edit3 } from 'lucide-react';
-
-// --- SÜTUN BİLEŞENİ (Droppable & Sortable Container) ---
-const Column = ({ id, title, children, onAddCard, count }) => {
-  const { setNodeRef } = useSortable({ id });
-
-  return (
-    <div ref={setNodeRef} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full overflow-hidden">
-      <div className="flex items-center justify-between mb-6 px-4 pt-2">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-4 rounded-full bg-rose-600"></div>
-          <h2 className="font-black text-slate-500 text-[10px] tracking-widest uppercase">{title}</h2>
-        </div>
-        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{count}</span>
-      </div>
-      <div className="flex-1 overflow-y-auto min-h-[200px]">
-        {children}
-      </div>
-      <button 
-        onClick={() => onAddCard(id)}
-        className="mt-4 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-[10px] font-black uppercase hover:border-rose-300 hover:text-rose-600 transition-all"
-      >
-        <Plus size={14} /> Görev Ekle
-      </button>
-    </div>
-  );
-};
+import { LogOut, Plus, Trash2, Clock, X, CheckCircle2, Edit3, Save, Ban } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -63,10 +29,14 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
       </div>
       <div className="flex justify-between items-start mb-3 pointer-events-none">
         <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-widest">{card.tag}</span>
-        {card.deadline && <span className="text-[9px] font-bold text-rose-600 italic">📅 {card.deadline}</span>}
+        <div className="flex items-center gap-1">
+            <Clock size={10} className="text-slate-400" />
+            <span className="text-[8px] font-bold text-slate-400 uppercase">{card.logs ? card.logs.length : 0} İşlem</span>
+        </div>
       </div>
       <h3 className="font-bold text-slate-800 text-sm leading-snug pr-6 pointer-events-none">{card.title}</h3>
-      <div className="flex justify-end mt-3 pt-3 border-t border-slate-50 pointer-events-none">
+      <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50 pointer-events-none">
+        <span className="text-[9px] font-bold text-rose-600 italic">{card.deadline || 'Süresiz'}</span>
         <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-[10px] font-bold text-rose-600 border border-rose-100 uppercase">
           {(card.assignee || 'K').charAt(0)}
         </div>
@@ -79,14 +49,13 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
 export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
-  const [cards, setCards] = useState({ 'c1': { id: 'c1', title: 'Kartları sürükleyip taşıyabilirsiniz!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31' } });
-  const [history, setHistory] = useState([]);
+  const [cards, setCards] = useState({ 
+    'c1': { id: 'c1', title: 'Kart geçmişini görmek için tıklayın!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+  });
   const [showModal, setShowModal] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
   const [editingCard, setEditingCard] = useState(null);
   const [activeId, setActiveId] = useState(null);
-
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
   const sensors = useSensors(
@@ -94,47 +63,29 @@ export default function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const addLog = (msg) => {
-    const log = { id: Date.now(), text: msg, time: new Date().toLocaleTimeString() };
-    setHistory(prev => [log, ...prev].slice(0, 10));
-  };
-
   const handleDragStart = (event) => setActiveId(event.active.id);
 
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
-    const destCol = Object.keys(columns).find(key => key === overId || columns[key].includes(overId));
-
+    const sourceCol = Object.keys(columns).find(key => columns[key].includes(active.id));
+    const destCol = (over.id in columns) ? over.id : Object.keys(columns).find(key => columns[key].includes(over.id));
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-
-    setColumns(prev => {
-      const sourceItems = prev[sourceCol].filter(id => id !== activeId);
-      const destItems = [...prev[destCol], activeId];
-      return { ...prev, [sourceCol]: sourceItems, [destCol]: destItems };
-    });
+    setColumns(prev => ({
+      ...prev,
+      [sourceCol]: prev[sourceCol].filter(id => id !== active.id),
+      [destCol]: [...prev[destCol], active.id]
+    }));
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
     setActiveId(null);
-
     if (!over) return;
-    if (active.id !== over.id) {
-      const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
-      if (colId) {
-        setColumns(prev => ({
-          ...prev,
-          [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id))
-        }));
-      }
+    const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
+    if (colId && active.id !== over.id) {
+      setColumns(prev => ({ ...prev, [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) }));
     }
-    addLog('Kart konumu güncellendi.');
   };
 
   const handleOpenModal = (colId, card = null) => {
@@ -149,6 +100,23 @@ export default function App() {
     setShowModal(true);
   };
 
+  const handleSave = () => {
+    if (!formData.title) return;
+    const newLog = { text: editingCard ? "Bilgiler güncellendi" : "Görev oluşturuldu", time: new Date().toLocaleTimeString() };
+    
+    if (editingCard) {
+      setCards(prev => ({
+        ...prev,
+        [editingCard.id]: { ...formData, id: editingCard.id, logs: [newLog, ...(editingCard.logs || [])] }
+      }));
+    } else {
+      const newId = `card-${Date.now()}`;
+      setCards(prev => ({ ...prev, [newId]: { ...formData, id: newId, logs: [newLog] } }));
+      setColumns(prev => ({ ...prev, [activeCol]: [...prev[activeCol], newId] }));
+    }
+    setShowModal(false);
+  };
+
   if (!user) {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
@@ -161,90 +129,71 @@ export default function App() {
     <div className="h-screen bg-[#fcfcfd] flex flex-col overflow-hidden font-sans">
       <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100 shrink-0">
         <div className="flex items-center gap-2 text-xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={24} /> K-<span className="text-rose-600">AGILE</span></div>
-        <div className="flex gap-4">
-          <button onClick={() => setShowHistory(!showHistory)} className="p-2 text-slate-400 hover:text-rose-600"><Clock size={20}/></button>
-          <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600"><LogOut size={20}/></button>
-        </div>
+        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600"><LogOut size={20}/></button>
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
-        <DndContext 
-          sensors={sensors} 
-          collisionDetection={closestCorners} 
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {Object.keys(columns).map(colId => (
-            <Column key={colId} id={colId} title={colId} count={columns[colId].length} onAddCard={handleOpenModal}>
-              <SortableContext items={columns[colId]} strategy={verticalListSortingStrategy}>
-                {columns[colId].map(id => (
-                  <SortableCard 
-                    key={id} id={id} card={cards[id]} 
-                    onDelete={(cardId) => setColumns(prev => {
-                      const nc = {...prev}; 
-                      Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId));
-                      return nc;
-                    })}
-                    onEdit={(card) => handleOpenModal(colId, card)}
-                  />
-                ))}
-              </SortableContext>
-            </Column>
-          ))}
-          <DragOverlay>
-            {activeId ? (
-              <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl opacity-90 scale-105 cursor-grabbing">
-                <h3 className="font-bold text-slate-800 text-sm leading-snug">{cards[activeId].title}</h3>
+            <div key={colId} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
+              <h2 className="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-6 px-4">{colId}</h2>
+              <div className="flex-1 overflow-y-auto min-h-[150px]">
+                <SortableContext items={columns[colId]} strategy={verticalListSortingStrategy}>
+                  {columns[colId].map(id => <SortableCard key={id} id={id} card={cards[id]} onDelete={(cardId) => setColumns(prev => {
+                      const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc;
+                  })} onEdit={(card) => handleOpenModal(colId, card)} />)}
+                </SortableContext>
               </div>
-            ) : null}
-          </DragOverlay>
+              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2"><Plus size={14}/> Yeni Görev</button>
+            </div>
+          ))}
+          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
         </DndContext>
       </main>
 
-      {/* MODAL VE HISTORY (Öncekiyle aynı tasarım) */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl border border-white relative animate-in zoom-in duration-200">
-            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400"><X size={20}/></button>
-            <h2 className="text-2xl font-black italic mb-6">{editingCard ? 'Görevi Güncelle' : 'Yeni Görev'}</h2>
-            <div className="space-y-4">
-              <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, title: e.target.value})}/>
-              <div className="grid grid-cols-2 gap-4">
-                <select value={formData.tag} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
-                  <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option>
-                </select>
-                <input type="text" placeholder="Sorumlu" value={formData.assignee} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, assignee: e.target.value})}/>
-              </div>
-              <input type="date" value={formData.deadline} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, deadline: e.target.value})}/>
-              <button onClick={() => {
-                if (editingCard) {
-                  setCards(prev => ({ ...prev, [editingCard.id]: { ...formData, id: editingCard.id } }));
-                  addLog('Görev güncellendi.');
-                } else {
-                  const newId = `card-${Date.now()}`;
-                  setCards(prev => ({ ...prev, [newId]: { ...formData, id: newId } }));
-                  setColumns(prev => ({ ...prev, [activeCol]: [...prev[activeCol], newId] }));
-                  addLog('Yeni görev eklendi.');
-                }
-                setShowModal(false);
-              }} className="w-full bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg">Kaydet</button>
-            </div>
-          </div>
-        </div>
-      )}
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl border border-white relative overflow-hidden flex flex-col max-h-[90vh]">
+            <h2 className="text-2xl font-black italic mb-8">{editingCard ? 'Görevi Düzenle' : 'Yeni Görev Oluştur'}</h2>
+            
+            <div className="flex gap-8 overflow-hidden">
+                {/* SOL: FORM */}
+                <div className="flex-1 space-y-4">
+                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10 transition-all" onChange={e => setFormData({...formData, title: e.target.value})}/>
+                    <div className="grid grid-cols-2 gap-4">
+                        <select value={formData.tag} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
+                            <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option>
+                        </select>
+                        <input type="text" placeholder="Sorumlu" value={formData.assignee} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, assignee: e.target.value})}/>
+                    </div>
+                    <input type="date" value={formData.deadline} className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, deadline: e.target.value})}/>
+                    
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={handleSave} className="flex-1 bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2">
+                            <Save size={18}/> {editingCard ? 'Güncelle' : 'Kaydet'}
+                        </button>
+                        <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-bold py-4 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
+                            <Ban size={18}/> İptal
+                        </button>
+                    </div>
+                </div>
 
-      {showHistory && (
-        <div className="fixed top-24 right-10 w-72 bg-white/95 backdrop-blur-md rounded-[2rem] border border-rose-100 shadow-2xl p-6 z-[500] animate-in slide-in-from-right">
-          <h3 className="font-black text-[10px] tracking-widest uppercase text-slate-400 mb-4">Son İşlemler</h3>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
-            {history.map(log => (
-              <div key={log.id} className="text-[10px] border-l-2 border-rose-400 pl-3 py-1 bg-rose-50/30 rounded-r-lg">
-                <p className="font-bold text-slate-800">{log.text}</p>
-                <span className="text-slate-400">{log.time}</span>
-              </div>
-            ))}
-          </div>
+                {/* SAĞ: GEÇMİŞ (Sadece Düzenleme Modunda) */}
+                {editingCard && (
+                    <div className="w-48 border-l border-slate-100 pl-6 flex flex-col">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Geçmiş</h3>
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                            {(editingCard.logs || []).map((log, i) => (
+                                <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2">
+                                    <p className="font-bold text-slate-700 leading-tight">{log.text}</p>
+                                    <span className="text-slate-400">{log.time}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
         </div>
       )}
     </div>
