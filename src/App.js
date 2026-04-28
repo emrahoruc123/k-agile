@@ -13,7 +13,7 @@ import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, History, LayoutPanelL
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1, zIndex: isDragging ? 100 : 1 };
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1, zIndex: 100 };
 
   return (
     <div
@@ -127,27 +127,28 @@ export default function App() {
     setBoards(prev => {
       const newCols = { ...prev[activeBoard].columns };
       delete newCols[colId];
-      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols } };
+      return { ...prev, [activeBoard]: { ...prev[activeBoard], columns: newCols } };
     });
   };
 
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const sourceCol = Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(active.id));
-    const destCol = (over.id in boards[activeBoard].columns) ? over.id : Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(over.id));
+    const currentBoard = boards[activeBoard];
+    const sourceCol = Object.keys(currentBoard.columns).find(key => currentBoard.columns[key].includes(active.id));
+    const destCol = (over.id in currentBoard.columns) ? over.id : Object.keys(currentBoard.columns).find(key => currentBoard.columns[key].includes(over.id));
     
     if (!sourceCol || !destCol || sourceCol === destCol) return;
 
     setBoards(prev => {
-      const currentBoard = prev[activeBoard];
-      const newCols = { ...currentBoard.columns };
+      const b = prev[activeBoard];
+      const newCols = { ...b.columns };
       newCols[sourceCol] = newCols[sourceCol].filter(id => id !== active.id);
       newCols[destCol] = [...newCols[destCol], active.id];
-      const newCards = { ...currentBoard.cards };
+      const newCards = { ...b.cards };
       const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
       newCards[active.id] = { ...newCards[active.id], logs: [newLog, ...(newCards[active.id].logs || [])] };
-      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols, cards: newCards } };
+      return { ...prev, [activeBoard]: { ...b, columns: newCols, cards: newCards } };
     });
   };
 
@@ -157,9 +158,9 @@ export default function App() {
       const colId = Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(active.id));
       if (colId) {
         setBoards(prev => {
-          const currentBoard = prev[activeBoard];
-          const newColItems = arrayMove(currentBoard.columns[colId], currentBoard.columns[colId].indexOf(active.id), currentBoard.columns[colId].indexOf(over.id));
-          return { ...prev, [activeBoard]: { ...currentBoard, columns: { ...currentBoard.columns, [colId]: newColItems } } };
+          const b = prev[activeBoard];
+          const newColItems = arrayMove(b.columns[colId], b.columns[colId].indexOf(active.id), b.columns[colId].indexOf(over.id));
+          return { ...prev, [activeBoard]: { ...b, columns: { ...b.columns, [colId]: newColItems } } };
         });
       }
     }
@@ -170,9 +171,9 @@ export default function App() {
     if (!formData.title) return;
     const now = new Date().toLocaleTimeString().slice(0,5);
     setBoards(prev => {
-      const currentBoard = prev[activeBoard];
-      const newCards = { ...currentBoard.cards };
-      const newCols = { ...currentBoard.columns };
+      const b = prev[activeBoard];
+      const newCards = { ...b.cards };
+      const newCols = { ...b.columns };
       if (editingCard) {
         newCards[editingCard.id] = { ...formData, id: editingCard.id, logs: [{text: "Düzenlendi", time: now}, ...(editingCard.logs || [])] };
       } else {
@@ -180,7 +181,7 @@ export default function App() {
         newCards[newId] = { ...formData, id: newId, logs: [{text: "Oluşturuldu", time: now}] };
         newCols[activeCol] = [...newCols[activeCol], newId];
       }
-      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols, cards: newCards } };
+      return { ...prev, [activeBoard]: { ...b, columns: newCols, cards: newCards } };
     });
     setShowModal(false);
   };
@@ -234,12 +235,12 @@ export default function App() {
                   key={id} id={id} card={boards[activeBoard].cards[id]} 
                   onDelete={(cardId) => {
                     setBoards(prev => {
-                      const current = prev[activeBoard];
-                      const newCols = { ...current.columns };
+                      const b = prev[activeBoard];
+                      const newCols = { ...b.columns };
                       Object.keys(newCols).forEach(k => newCols[k] = newCols[k].filter(i => i !== cardId));
-                      const newCards = { ...current.cards };
+                      const newCards = { ...b.cards };
                       delete newCards[cardId];
-                      return { ...prev, [activeBoard]: { ...current, columns: newCols, cards: newCards } };
+                      return { ...prev, [activeBoard]: { ...b, columns: newCols, cards: newCards } };
                     });
                   }} 
                   onEdit={(card) => { setActiveCol(colId); setEditingCard(card); setFormData({title: card.title, tag: card.tag, assignee: card.assignee, deadline: card.deadline}); setShowModal(true); }} 
@@ -248,7 +249,7 @@ export default function App() {
               <button onClick={() => { setActiveCol(colId); setEditingCard(null); setFormData({title: '', tag: 'GÖREV', assignee: '', deadline: ''}); setShowModal(true); }} className="mt-4 py-4 w-full bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Görev Ekle</button>
             </DroppableColumn>
           ))}
-          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{boards[activeBoard].cards[activeId]?.title}</h3></div> : null}</DragOverlay>
+          <DragOverlay>{activeId && boards[activeBoard].cards[activeId] ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{boards[activeBoard].cards[activeId].title}</h3></div> : null}</DragOverlay>
         </DndContext>
       </main>
 
@@ -258,12 +259,12 @@ export default function App() {
             <h2 className="text-3xl font-black italic mb-10 text-slate-800 uppercase tracking-tighter">{editingCard ? 'DÜZENLE' : 'YENİ GÖREV'}</h2>
             <div className="flex gap-12 overflow-hidden">
               <div className="flex-1 space-y-6">
-                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
                 <div className="grid grid-cols-2 gap-6">
                   <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Kategori</label><select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none font-bold text-slate-600"><option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option></select></div>
-                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
+                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
                 </div>
-                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
                 <div className="flex gap-4 pt-6"><button onClick={handleSaveCard} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all">KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem]">İPTAL</button></div>
               </div>
               {editingCard && (
