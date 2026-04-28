@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  DndContext, closestCorners, KeyboardSensor, PointerSensor,
-  useSensor, useSensors, DragOverlay, pointerWithin, getFirstCollision, useDroppable
+  DndContext, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragOverlay, pointerWithin, useDroppable
 } from '@dnd-kit/core';
 import {
   arrayMove, SortableContext, sortableKeyboardCoordinates,
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight, History, Lock, User, LayoutPanelLeft, Layout, ChevronDown } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, History, LayoutPanelLeft, Layout } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -61,12 +61,9 @@ const DroppableColumn = ({ id, items, title, children, onDeleteColumn, isSystemC
 // --- ANA UYGULAMA ---
 export default function App() {
   const systemColumns = ['YAPILACAK', 'İŞLEMDE', 'TAMAMLANDI'];
-  
-  // State Tanımları
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   
-  // Board verilerini yükle
   const [boards, setBoards] = useState(() => {
     const saved = localStorage.getItem('kBoardsData');
     return saved ? JSON.parse(saved) : { 
@@ -84,7 +81,6 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
-  // Kayıt işlemi
   useEffect(() => {
     if (user) {
       localStorage.setItem('kBoardsData', JSON.stringify(boards));
@@ -93,7 +89,6 @@ export default function App() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  // Board İşlemleri
   const handleCreateBoard = () => {
     const name = prompt("Yeni Pano Adı:");
     if (name && !boards[name]) {
@@ -107,7 +102,7 @@ export default function App() {
 
   const handleDeleteBoard = () => {
     if (Object.keys(boards).length <= 1) return alert("Son kalan panoyu silemezsiniz.");
-    if (window.confirm(`${activeBoard} panosunu ve içindeki TÜM görevleri silmek istediğinize emin misiniz?`)) {
+    if (window.confirm(`${activeBoard} panosunu silmek istediğinize emin misiniz?`)) {
       const remainingBoards = { ...boards };
       delete remainingBoards[activeBoard];
       setBoards(remainingBoards);
@@ -115,7 +110,6 @@ export default function App() {
     }
   };
 
-  // Sütun İşlemleri
   const handleAddColumn = () => {
     const colName = prompt("Yeni Sütun Adı:");
     if (colName) {
@@ -123,10 +117,7 @@ export default function App() {
       if (boards[activeBoard].columns[upper]) return alert("Sütun mevcut!");
       setBoards(prev => ({
         ...prev,
-        [activeBoard]: {
-          ...prev[activeBoard],
-          columns: { ...prev[activeBoard].columns, [upper]: [] }
-        }
+        [activeBoard]: { ...prev[activeBoard], columns: { ...prev[activeBoard].columns, [upper]: [] } }
       }));
     }
   };
@@ -140,7 +131,6 @@ export default function App() {
     });
   };
 
-  // Drag & Drop Mantığı
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
@@ -154,11 +144,9 @@ export default function App() {
       const newCols = { ...currentBoard.columns };
       newCols[sourceCol] = newCols[sourceCol].filter(id => id !== active.id);
       newCols[destCol] = [...newCols[destCol], active.id];
-      
       const newCards = { ...currentBoard.cards };
       const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
       newCards[active.id] = { ...newCards[active.id], logs: [newLog, ...(newCards[active.id].logs || [])] };
-
       return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols, cards: newCards } };
     });
   };
@@ -185,7 +173,6 @@ export default function App() {
       const currentBoard = prev[activeBoard];
       const newCards = { ...currentBoard.cards };
       const newCols = { ...currentBoard.columns };
-      
       if (editingCard) {
         newCards[editingCard.id] = { ...formData, id: editingCard.id, logs: [{text: "Düzenlendi", time: now}, ...(editingCard.logs || [])] };
       } else {
@@ -218,8 +205,6 @@ export default function App() {
       <header className="bg-white px-10 py-5 flex justify-between items-center border-b border-slate-100 shadow-sm z-50">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2 text-2xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={28} /> K-AGILE</div>
-          
-          {/* Board Selector */}
           <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
             <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm text-[11px] font-black text-slate-600 uppercase tracking-widest">
               <Layout size={14} className="text-rose-500" />
@@ -227,14 +212,12 @@ export default function App() {
                 {Object.keys(boards).map(name => <option key={name} value={name}>{name}</option>)}
               </select>
             </div>
-            <button onClick={handleCreateBoard} className="p-2 hover:bg-rose-500 hover:text-white text-slate-400 rounded-xl transition-all" title="Yeni Pano"><Plus size={18}/></button>
-            <button onClick={handleDeleteBoard} className="p-2 hover:bg-rose-50 text-rose-500 rounded-xl transition-all" title="Panoyu Sil"><Trash2 size={18}/></button>
+            <button onClick={handleCreateBoard} className="p-2 hover:bg-rose-500 hover:text-white text-slate-400 rounded-xl transition-all"><Plus size={18}/></button>
+            <button onClick={handleDeleteBoard} className="p-2 hover:bg-rose-50 text-rose-500 rounded-xl transition-all"><Trash2 size={18}/></button>
           </div>
         </div>
-
         <div className="flex items-center gap-4">
           <button onClick={handleAddColumn} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg"><LayoutPanelLeft size={16}/> Sütun Ekle</button>
-          <div className="w-[1px] h-8 bg-slate-100 mx-2"></div>
           <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
         </div>
       </header>
@@ -243,10 +226,8 @@ export default function App() {
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={(e) => setActiveId(e.active.id)} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {Object.keys(boards[activeBoard].columns).map(colId => (
             <DroppableColumn 
-              key={colId} id={colId} title={colId} 
-              items={boards[activeBoard].columns[colId]} 
-              onDeleteColumn={handleDeleteColumn}
-              isSystemColumn={systemColumns.includes(colId)}
+              key={colId} id={colId} title={colId} items={boards[activeBoard].columns[colId]} 
+              onDeleteColumn={handleDeleteColumn} isSystemColumn={systemColumns.includes(colId)}
             >
               {boards[activeBoard].columns[colId].map(id => (
                 <SortableCard 
@@ -274,21 +255,21 @@ export default function App() {
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-3xl rounded-[3.5rem] p-12 shadow-2xl flex flex-col max-h-[85vh]">
-            <h2 className="text-3xl font-black italic mb-10 flex items-center gap-3 text-slate-800 uppercase tracking-tighter">{editingCard ? 'DÜZENLE' : 'YENİ GÖREV'}</h2>
-            <div className="flex gap-12">
+            <h2 className="text-3xl font-black italic mb-10 text-slate-800 uppercase tracking-tighter">{editingCard ? 'DÜZENLE' : 'YENİ GÖREV'}</h2>
+            <div className="flex gap-12 overflow-hidden">
               <div className="flex-1 space-y-6">
-                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
                 <div className="grid grid-cols-2 gap-6">
                   <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Kategori</label><select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none font-bold text-slate-600"><option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option></select></div>
-                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20" /></div>
+                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
                 </div>
                 <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
-                <div className="flex gap-4 pt-6"><button onClick={handleSaveCard} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all flex items-center justify-center gap-3"><Save size={20}/> KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem] hover:bg-slate-200 transition-all flex items-center justify-center gap-3"><Ban size={20}/> İPTAL</button></div>
+                <div className="flex gap-4 pt-6"><button onClick={handleSaveCard} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all">KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem]">İPTAL</button></div>
               </div>
               {editingCard && (
                 <div className="w-72 border-l border-slate-100 pl-10 flex flex-col">
-                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><History size={16} className="text-rose-500"/> Geçmiş</h3>
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-4">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><History size={16}/> Geçmiş</h3>
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-4 scrollbar-hide">
                     {(editingCard.logs || []).map((log, i) => (
                       <div key={i} className="text-[11px] border-l-2 border-rose-300 pl-4 py-1 relative"><div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-rose-400"></div><p className="font-bold text-slate-700">{log.text}</p><span className="text-slate-400 text-[9px]">{log.time}</span></div>
                     ))}
