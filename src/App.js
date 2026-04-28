@@ -60,7 +60,7 @@ export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
   const [cards, setCards] = useState({ 
-    'c1': { id: 'c1', title: 'Hoş geldiniz! Boş sütunlara da taşıma yapabilirsiniz.', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Görev oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+    'c1': { id: 'c1', title: 'Boş sütunlara taşımak artık çok daha kolay!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Görev oluşturuldu", time: new Date().toLocaleTimeString()}] } 
   });
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
@@ -77,6 +77,7 @@ export default function App() {
     const pointerCollisions = pointerWithin(args);
     const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
     let overId = getFirstCollision(collisions, 'id');
+    
     if (overId != null) {
       if (overId in columns) return collisions;
       const columnId = Object.keys(columns).find((key) => columns[key].includes(overId));
@@ -92,25 +93,22 @@ export default function App() {
     if (!over) return;
     const activeId = active.id;
     const overId = over.id;
+    
     const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
     const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
     
     if (!sourceCol || !destCol || sourceCol === destCol) return;
 
-    setColumns((prev) => ({
-      ...prev,
-      [sourceCol]: prev[sourceCol].filter((id) => id !== activeId),
-      [destCol]: [...prev[destCol], activeId],
-    }));
+    setColumns((prev) => {
+      const sourceItems = prev[sourceCol].filter((id) => id !== activeId);
+      const destItems = [...prev[destCol], activeId];
+      return { ...prev, [sourceCol]: sourceItems, [destCol]: destItems };
+    });
 
-    // Kartın loguna taşıma işlemini ekle
     setCards(prev => {
         const card = prev[activeId];
         const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString() };
-        return {
-            ...prev,
-            [activeId]: { ...card, logs: [newLog, ...(card.logs || [])] }
-        };
+        return { ...prev, [activeId]: { ...card, logs: [newLog, ...(card.logs || [])] } };
     });
   };
 
@@ -144,10 +142,7 @@ export default function App() {
     if (!formData.title) return;
     const newLog = { text: editingCard ? "Bilgiler güncellendi" : "Görev oluşturuldu", time: new Date().toLocaleTimeString() };
     if (editingCard) {
-      setCards(prev => ({
-        ...prev,
-        [editingCard.id]: { ...formData, id: editingCard.id, logs: [newLog, ...(editingCard.logs || [])] }
-      }));
+      setCards(prev => ({ ...prev, [editingCard.id]: { ...formData, id: editingCard.id, logs: [newLog, ...(editingCard.logs || [])] } }));
     } else {
       const newId = `card-${Date.now()}`;
       setCards(prev => ({ ...prev, [newId]: { ...formData, id: newId, logs: [newLog] } }));
@@ -180,12 +175,14 @@ export default function App() {
           onDragEnd={handleDragEnd}
         >
           {Object.keys(columns).map(colId => (
-            <div key={colId} className="w-[320px] shrink-0 bg-white/40 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
+            <div key={colId} className="w-[320px] shrink-0 bg-white/40 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 h-full">
               <h2 className="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-6 px-4">{colId}</h2>
               
-              {/* BOŞ ALAN SORUNUNU ÇÖZEN DROP ALANI */}
               <SortableContext id={colId} items={columns[colId]} strategy={verticalListSortingStrategy}>
-                <div className="flex-1 overflow-y-auto min-h-[300px] transition-colors rounded-2xl p-2">
+                <div 
+                  className="flex-1 overflow-y-auto min-h-[500px] rounded-3xl p-2"
+                  style={{ touchAction: 'none' }}
+                >
                    {columns[colId].map(id => (
                     <SortableCard 
                         key={id} id={id} card={cards[id]} 
@@ -196,7 +193,9 @@ export default function App() {
                     />
                   ))}
                   {columns[colId].length === 0 && (
-                    <div className="h-full border-2 border-dashed border-slate-100 rounded-3xl flex items-center justify-center text-[10px] font-bold text-slate-300 uppercase tracking-widest">Sürükle Bırak</div>
+                    <div className="h-32 border-2 border-dashed border-slate-100 rounded-[2rem] flex items-center justify-center text-[10px] font-bold text-slate-200 uppercase tracking-widest pointer-events-none">
+                      Buraya Bırak
+                    </div>
                   )}
                 </div>
               </SortableContext>
@@ -236,10 +235,10 @@ export default function App() {
                 {editingCard && (
                     <div className="w-64 border-l border-slate-100 pl-6 flex flex-col">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> İşlem Geçmişi</h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
                             {(editingCard.logs || []).map((log, i) => (
                                 <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-2 rounded-r-lg">
-                                    <p className="font-bold text-slate-700 leading-tight flex items-center gap-1">
+                                    <p className="font-bold text-slate-700 leading-tight flex items-center gap-1 uppercase italic">
                                         {log.text.includes('➔') ? <><ArrowRight size={10} className="text-rose-500" /> {log.text}</> : log.text}
                                     </p>
                                     <span className="text-slate-400 font-medium text-[9px]">{log.time}</span>
