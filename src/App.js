@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   DndContext, closestCorners, KeyboardSensor, PointerSensor, 
   useSensor, useSensors
@@ -33,7 +33,7 @@ const SortableCard = ({ id, card, onDelete }) => {
       <h3 className="font-bold text-slate-800 text-sm leading-snug pr-6">{card.title}</h3>
       <div className="flex justify-end mt-3 pt-3 border-t border-slate-50">
         <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-[10px] font-bold text-rose-600 border border-rose-100">
-          {card.assignee.charAt(0).toUpperCase()}
+          {(card.assignee || 'K').charAt(0).toUpperCase()}
         </div>
       </div>
     </div>
@@ -44,13 +44,12 @@ const SortableCard = ({ id, card, onDelete }) => {
 export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
-  const [cards, setCards] = useState({ 'c1': { id: 'c1', title: 'Hoş geldiniz!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2024-12-31' } });
+  const [cards, setCards] = useState({ 'c1': { id: 'c1', title: 'Hoş geldiniz!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31' } });
   const [history, setHistory] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
 
-  // Form State
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
   const sensors = useSensors(
@@ -66,18 +65,21 @@ export default function App() {
   const handleAddCard = () => {
     if (!formData.title) return;
     const newId = `card-${Date.now()}`;
-    setCards(prev => ({ ...prev, [newId]: { ...formData, id: newId } }));
+    const cardData = { ...formData, id: newId, assignee: formData.assignee || user };
+    setCards(prev => ({ ...prev, [newId]: cardData }));
     setColumns(prev => ({ ...prev, [activeCol]: [...prev[activeCol], newId] }));
     addLog(`"${formData.title}" eklendi.`);
     setShowModal(false);
-    setFormData({ title: '', tag: 'GÖREV', assignee: user, deadline: '' });
+    setFormData({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
   };
 
   const deleteCard = (cardId) => {
     addLog(`Bir görev silindi.`);
-    const newCols = { ...columns };
-    Object.keys(newCols).forEach(c => newCols[c] = newCols[c].filter(id => id !== cardId));
-    setColumns(newCols);
+    setColumns(prev => {
+      const newCols = { ...prev };
+      Object.keys(newCols).forEach(c => newCols[c] = newCols[c].filter(id => id !== cardId));
+      return newCols;
+    });
   };
 
   const handleDragEnd = (event) => {
@@ -91,15 +93,23 @@ export default function App() {
         setColumns(prev => ({ ...prev, [sourceCol]: arrayMove(prev[sourceCol], prev[sourceCol].indexOf(active.id), prev[sourceCol].indexOf(over.id)) }));
       } else {
         setColumns(prev => ({ ...prev, [sourceCol]: prev[sourceCol].filter(id => id !== active.id), [destCol]: [...prev[destCol], active.id] }));
-        addLog(`Görev ${destCol} sütununa taşındı.`);
+        addLog(`Görev ${destCol} alanına çekildi.`);
       }
     }
   };
 
   if (!user) {
     return (
-      <div className="h-screen bg-slate-100 flex items-center justify-center p-6">
-        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Giriş Yap</button>
+      <div className="h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
+         <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-white max-w-sm w-full">
+            <h1 className="text-4xl font-black mb-8 italic text-slate-900 tracking-tighter">K-<span className="text-rose-600">Agile</span></h1>
+            <button 
+              onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} 
+              className="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-rose-700 transition-all"
+            >
+              Sisteme Giriş
+            </button>
+         </div>
       </div>
     );
   }
@@ -111,8 +121,8 @@ export default function App() {
           <CheckCircle2 className="text-rose-600" size={24} /> K-<span className="text-rose-600">AGILE</span>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => setShowHistory(!showHistory)} className="p-2 text-slate-400 hover:text-rose-600"><Clock size={20}/></button>
-          <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600"><LogOut size={20}/></button>
+          <button onClick={() => setShowHistory(!showHistory)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Clock size={20}/></button>
+          <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={20}/></button>
         </div>
       </header>
 
@@ -122,8 +132,9 @@ export default function App() {
             <div key={colId} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
               <div className="flex items-center justify-between mb-6 px-4 pt-2">
                 <div className="flex items-center gap-2"><div className="w-1 h-4 rounded-full bg-rose-600"></div><h2 className="font-black text-slate-500 text-[10px] tracking-widest uppercase">{colId}</h2></div>
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{columns[colId].length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto min-h-[100px]">
                 <SortableContext items={columns[colId]} strategy={verticalListSortingStrategy}>
                   {columns[colId].map(id => <SortableCard key={id} id={id} card={cards[id]} onDelete={deleteCard} />)}
                 </SortableContext>
@@ -134,39 +145,37 @@ export default function App() {
         </DndContext>
       </main>
 
-      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl border border-white relative animate-in fade-in zoom-in duration-200">
-            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400"><X size={20}/></button>
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl border border-white relative">
+            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-rose-600 transition-colors"><X size={20}/></button>
             <h2 className="text-2xl font-black italic mb-6">Yeni <span className="text-rose-600">Görev</span></h2>
             <div className="space-y-4">
-              <input type="text" placeholder="Görev Başlığı" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/20" onChange={e => setFormData({...formData, title: e.target.value})}/>
+              <input type="text" placeholder="Görev Başlığı" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-transparent focus:border-rose-200" onChange={e => setFormData({...formData, title: e.target.value})}/>
               <div className="grid grid-cols-2 gap-4">
-                <select className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
+                <select className="p-4 bg-slate-50 rounded-2xl outline-none appearance-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
                   <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option>
                 </select>
                 <input type="text" placeholder="Sorumlu" className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, assignee: e.target.value})}/>
               </div>
               <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, deadline: e.target.value})}/>
-              <button onClick={handleAddCard} className="w-full bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-rose-700 transition-all">Kaydet</button>
+              <button onClick={handleAddCard} className="w-full bg-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:opacity-90 transition-all">Görevi Kaydet</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* HISTORY PANEL */}
       {showHistory && (
-        <div className="fixed top-20 right-10 w-72 bg-white/90 backdrop-blur-md rounded-[2rem] border border-rose-100 shadow-2xl p-6 z-[500] animate-in slide-in-from-right duration-300">
-          <h3 className="font-black text-[10px] tracking-widest uppercase text-slate-400 mb-4 flex items-center gap-2"><Clock size={12}/> İşlem Geçmişi</h3>
-          <div className="space-y-3">
+        <div className="fixed top-24 right-10 w-72 bg-white/95 backdrop-blur-md rounded-[2rem] border border-rose-100 shadow-2xl p-6 z-[500]">
+          <h3 className="font-black text-[10px] tracking-widest uppercase text-slate-400 mb-4 flex items-center gap-2 underline decoration-rose-500/20 underline-offset-4">Son İşlemler</h3>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
             {history.map(log => (
-              <div key={log.id} className="text-[10px] border-l-2 border-rose-200 pl-3 py-1">
-                <p className="font-bold text-slate-700">{log.text}</p>
+              <div key={log.id} className="text-[10px] border-l-2 border-rose-400 pl-3 py-1 bg-rose-50/30 rounded-r-lg">
+                <p className="font-bold text-slate-800 leading-tight">{log.text}</p>
                 <span className="text-slate-400 font-medium">{log.time}</span>
               </div>
             ))}
-            {history.length === 0 && <p className="text-[10px] text-slate-400 italic">Henüz işlem yapılmadı.</p>}
+            {history.length === 0 && <p className="text-[10px] text-slate-400 italic">Henüz bir işlem yapılmadı.</p>}
           </div>
         </div>
       )}
