@@ -8,26 +8,67 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout, Target } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout, Target, AlertCircle } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1, zIndex: 100 };
+  
+  // Tarih Kontrol Mantığı
+  const getDeadlineStatus = () => {
+    if (!card.deadline) return 'normal';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadlineDate = new Date(card.deadline);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'critical'; // Bugün veya geçmiş
+    if (diffDays <= 3) return 'warning'; // 3 günden az
+    return 'normal';
+  };
+
+  const status = getDeadlineStatus();
+
+  const style = { 
+    transform: CSS.Transform.toString(transform), 
+    transition, 
+    opacity: isDragging ? 0.3 : 1, 
+    zIndex: 100 
+  };
 
   return (
     <div
       ref={setNodeRef} style={style} {...attributes} {...listeners}
-      className="bg-white p-4 md:p-5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm mb-4 hover:border-rose-300 transition-all relative group cursor-grab active:cursor-grabbing"
+      className={`bg-white p-4 md:p-5 rounded-[1.5rem] md:rounded-[2rem] border shadow-sm mb-4 transition-all relative group cursor-grab active:cursor-grabbing
+        ${status === 'critical' ? 'border-rose-500 shadow-rose-100 ring-2 ring-rose-50' : 'border-slate-100'}
+        ${status === 'warning' ? 'border-amber-400 shadow-amber-50' : ''}
+        hover:border-rose-300`}
     >
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-2 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg border border-slate-100"><Edit3 size={14} /></button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(id); }} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg border border-slate-100"><Trash2 size={14} /></button>
       </div>
-      <div className="flex justify-between items-start mb-3 pr-20"><span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-widest">{card.tag}</span></div>
+      
+      <div className="flex justify-between items-start mb-3 pr-20">
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-widest">{card.tag}</span>
+          {status === 'critical' && <AlertCircle size={14} className="text-rose-600 animate-pulse" />}
+          {status === 'warning' && <AlertCircle size={14} className="text-amber-500" />}
+        </div>
+      </div>
+
       <h3 className="font-bold text-slate-800 text-sm leading-snug pr-4 mb-3">{card.title}</h3>
+      
       <div className="flex justify-between items-center pt-3 border-t border-slate-50">
-        <div className="flex items-center gap-1.5"><Clock size={12} className="text-rose-500" /><span className="text-[9px] font-bold text-rose-600 uppercase">{card.deadline || 'Süresiz'}</span></div>
+        <div className="flex items-center gap-1.5">
+          <Clock size={12} className={status === 'critical' ? 'text-rose-600' : 'text-slate-400'} />
+          <span className={`text-[9px] font-bold uppercase ${status === 'critical' ? 'text-rose-600' : 'text-slate-500'}`}>
+            {card.deadline || 'Süresiz'}
+          </span>
+        </div>
         <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-600 border border-white shadow-sm">{(card.assignee || 'K').charAt(0)}</div>
       </div>
     </div>
@@ -78,7 +119,6 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
-  // İlerleme yüzdesi hesaplama
   const calculateProgress = () => {
     const board = boards[activeBoard];
     const totalCards = Object.values(board.columns).reduce((acc, curr) => acc + curr.length, 0);
@@ -197,23 +237,16 @@ export default function App() {
       <header className="bg-white px-4 md:px-10 pt-4 pb-1 md:py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100 shadow-sm z-50">
         <div className="flex items-center justify-between w-full md:w-auto gap-4">
           <div className="flex items-center gap-1 text-xl font-black italic"><CheckCircle2 className="text-rose-600" size={24} /> K-AGILE</div>
-          
-          {/* Mobil İçin İlerleme Özeti */}
           <div className="md:hidden flex items-center gap-2 px-3 py-1 bg-rose-50 rounded-full border border-rose-100">
             <Target size={14} className="text-rose-500" />
             <span className="text-[10px] font-black text-rose-600">%{progress}</span>
           </div>
-
           <button onClick={() => {localStorage.clear(); window.location.reload();}} className="md:hidden p-2 text-slate-400"><LogOut size={20}/></button>
         </div>
         
-        {/* Masaüstü İlerleme Çubuğu */}
         <div className="hidden md:flex items-center gap-4 flex-1 max-w-md px-10">
            <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
-              <div 
-                className="bg-rose-500 h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
-                style={{ width: `${progress}%` }}
-              ></div>
+              <div className="bg-rose-500 h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(244,63,94,0.3)]" style={{ width: `${progress}%` }}></div>
            </div>
            <div className="flex flex-col items-start leading-none">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">İlerleme</span>
@@ -235,7 +268,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Mobil İçin İnce Progress Çubuğu (Header Altı) */}
       <div className="md:hidden w-full bg-slate-100 h-1">
           <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
       </div>
@@ -252,7 +284,7 @@ export default function App() {
                   });
                 }} onEdit={(c) => { setActiveCol(colId); setEditingCard(c); setFormData({title: c.title, tag: c.tag, assignee: c.assignee, deadline: c.deadline}); setShowModal(true); }} />
               ))}
-              <button onClick={() => { setActiveCol(colId); setEditingCard(null); setFormData({title:'', tag:'GÖREV', assignee:'', deadline:''}); setShowModal(true); }} className="w-full py-4 bg-white text-rose-600 rounded-2xl text-[10px] font-bold uppercase shadow-sm border border-dashed border-rose-200">+ Görev Ekle</button>
+              <button onClick={() => { setActiveCol(colId); setEditingCard(null); setFormData({title:'', tag:'GÖREV', assignee:'', deadline:''}); setShowModal(true); }} className="w-full py-4 bg-white text-rose-600 rounded-2xl text-[10px] font-bold uppercase shadow-sm border border-dashed border-rose-200 hover:bg-rose-50 transition-colors">+ Görev Ekle</button>
             </DroppableColumn>
           ))}
           <DragOverlay>{activeId && boards[activeBoard].cards[activeId] ? <div className="bg-white p-4 rounded-2xl border-2 border-rose-400 shadow-xl w-[280px]"><h3 className="font-bold text-xs">{boards[activeBoard].cards[activeId].title}</h3></div> : null}</DragOverlay>
@@ -264,14 +296,14 @@ export default function App() {
           <div className="bg-white w-full max-w-2xl rounded-t-[2rem] md:rounded-[2.5rem] p-6 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl font-black mb-6 uppercase tracking-tighter">{editingCard ? 'Düzenle' : 'Yeni Görev'}</h2>
             <div className="space-y-4">
-              <input type="text" placeholder="Görev Başlığı" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
+              <input type="text" placeholder="Görev Başlığı" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100 focus:border-rose-300" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold text-slate-600">
                   <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="BİLGİ">BİLGİ</option>
                 </select>
-                <input type="text" placeholder="Sorumlu" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
+                <input type="text" placeholder="Sorumlu" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100 focus:border-rose-300" />
               </div>
-              <input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
+              <input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100 focus:border-rose-300" />
               
               {editingCard && (
                 <div className="mt-4 p-4 bg-slate-50 rounded-xl max-h-40 overflow-y-auto border border-slate-100">
@@ -283,8 +315,8 @@ export default function App() {
               )}
 
               <div className="flex gap-3 pt-4">
-                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest shadow-lg shadow-rose-200">Kaydet</button>
-                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest">Kapat</button>
+                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest shadow-lg shadow-rose-200 hover:bg-rose-700 transition-colors">Kaydet</button>
+                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-slate-200 transition-colors">Kapat</button>
               </div>
             </div>
           </div>
