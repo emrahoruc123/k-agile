@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, History, LayoutPanelLeft, Layout } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -70,6 +70,7 @@ export default function App() {
       }
     };
   });
+  
   const [activeBoard, setActiveBoard] = useState(Object.keys(boards)[0]);
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
@@ -81,7 +82,10 @@ export default function App() {
     if (user) localStorage.setItem('kBoardsData', JSON.stringify(boards));
   }, [boards, user]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), 
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const handleCreateBoard = () => {
     const name = prompt("Yeni Pano Adı:");
@@ -110,8 +114,9 @@ export default function App() {
   const handleDeleteColumn = (colId) => {
     if (boards[activeBoard].columns[colId].length > 0) return alert("Sütun dolu!");
     setBoards(prev => {
-      const nc = { ...prev[activeBoard].columns }; delete nc[colId];
-      return { ...prev, [activeBoard]: { ...prev[activeBoard], columns: nc } };
+      const b = prev[activeBoard];
+      const nc = { ...b.columns }; delete nc[colId];
+      return { ...prev, [activeBoard]: { ...b, columns: nc } };
     });
   };
 
@@ -234,7 +239,7 @@ export default function App() {
               
               {editingCard && (
                 <div className="mt-4 p-4 bg-slate-50 rounded-xl max-h-40 overflow-y-auto">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-2">İşlem Geçmişi</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic">İşlem Geçmişi</p>
                   {editingCard.logs?.map((l, i) => (
                     <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 mb-2"><span className="font-bold">{l.text}</span> - {l.time}</div>
                   ))}
@@ -242,8 +247,8 @@ export default function App() {
               )}
 
               <div className="flex gap-3 pt-4">
-                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold">KAYDET</button>
-                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">KAPAT</button>
+                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest">Kaydet</button>
+                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest">Kapat</button>
               </div>
             </div>
           </div>
