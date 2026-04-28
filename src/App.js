@@ -8,11 +8,11 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Check, Plus, Trash2 } from 'lucide-react';
+import { LogOut, Plus, Trash2 } from 'lucide-react';
 
-// --- SÜTUN BİLEŞENİ (Droppable) ---
+// --- SÜTUN BİLEŞENİ ---
 const Column = ({ id, children, title, onAddCard }) => {
-  const { setNodeRef } = useSortable({ id }); // Sütunu dnd-kit'e tanıtır
+  const { setNodeRef } = useSortable({ id });
 
   return (
     <div ref={setNodeRef} className="w-[320px] shrink-0 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border border-white shadow-sm flex flex-col p-4 max-h-full">
@@ -35,7 +35,7 @@ const Column = ({ id, children, title, onAddCard }) => {
   );
 };
 
-// --- KART BİLEŞENİ (Sortable) ---
+// --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
@@ -43,24 +43,25 @@ const SortableCard = ({ id, card, onDelete }) => {
     transform: CSS.Transform.toString(transform), 
     transition, 
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 100 : 1
+    zIndex: isDragging ? 100 : 1,
+    position: 'relative'
   };
 
   return (
     <div
       ref={setNodeRef} style={style} {...attributes} {...listeners}
-      className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm mb-4 group hover:border-rose-300 transition-all relative"
+      className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm mb-4 group hover:border-rose-300 transition-all"
     >
-      <button 
-        onClick={(e) => { e.stopPropagation(); onDelete(id); }}
-        className="absolute top-4 right-4 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Trash2 size={14} />
-      </button>
-      <div className="flex mb-3">
+      <div className="flex justify-between items-start mb-3">
         <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase">{card.tag}</span>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete(id); }}
+          className="text-slate-300 hover:text-rose-600 transition-colors"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
-      <h3 className="font-bold text-slate-800 text-sm leading-snug pr-6">{card.title}</h3>
+      <h3 className="font-bold text-slate-800 text-sm leading-snug pr-4">{card.title}</h3>
       <div className="flex justify-end mt-3 pt-3 border-t border-slate-50">
         <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-[10px] font-bold text-rose-600">
           {card.assignee.charAt(0).toUpperCase()}
@@ -79,7 +80,7 @@ export default function App() {
     'TAMAMLANDI': []
   });
   const [cards, setCards] = useState({
-    'card-1': { id: 'card-1', title: 'Yeni görev ekleyebilir ve taşıyabilirsiniz!', tag: 'SİSTEM', assignee: 'Gemini' }
+    'card-1': { id: 'card-1', title: 'Hoş geldiniz! Görevlerinizi buradan yönetebilirsiniz.', tag: 'SİSTEM', assignee: 'K-Agile' }
   });
 
   const sensors = useSensors(
@@ -91,8 +92,8 @@ export default function App() {
     const title = prompt("Görev başlığı nedir?");
     if (!title) return;
     const newId = `card-${Date.now()}`;
-    setCards({ ...cards, [newId]: { id: newId, title, tag: 'GÖREV', assignee: user } });
-    setColumns({ ...columns, [colId]: [...columns[colId], newId] });
+    setCards(prev => ({ ...prev, [newId]: { id: newId, title, tag: 'GÖREV', assignee: user || 'Misafir' } }));
+    setColumns(prev => ({ ...prev, [colId]: [...prev[colId], newId] }));
   };
 
   const deleteCard = (cardId) => {
@@ -110,43 +111,49 @@ export default function App() {
     const activeId = active.id;
     const overId = over.id;
 
-    // Aktif kartın hangi sütunda olduğunu bul
     const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
-    // Üzerine gelinen yerin bir sütun mu yoksa başka bir kart mı olduğunu bul
     const destCol = Object.keys(columns).find(key => key === overId || columns[key].includes(overId));
 
     if (!sourceCol || !destCol) return;
 
     if (sourceCol === destCol) {
-      setColumns({
-        ...columns,
-        [sourceCol]: arrayMove(columns[sourceCol], columns[sourceCol].indexOf(activeId), columns[sourceCol].indexOf(overId))
-      });
+      setColumns(prev => ({
+        ...prev,
+        [sourceCol]: arrayMove(prev[sourceCol], prev[sourceCol].indexOf(activeId), prev[sourceCol].indexOf(overId))
+      }));
     } else {
-      setColumns({
-        ...columns,
-        [sourceCol]: columns[sourceCol].filter(id => id !== activeId),
-        [destCol]: [...columns[destCol], activeId]
-      });
+      setColumns(prev => ({
+        ...prev,
+        [sourceCol]: prev[sourceCol].filter(id => id !== activeId),
+        [destCol]: [...prev[destCol], activeId]
+      }));
     }
   };
 
   if (!user) {
     return (
-      <div className="h-screen bg-slate-100 flex items-center justify-center p-6">
-        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-10 py-4 rounded-2xl font-bold">Giriş Yap</button>
+      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+         <h1 className="text-4xl font-black mb-8 italic text-slate-900 tracking-tighter">K-<span className="text-rose-600">Agile</span></h1>
+         <button 
+           onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} 
+           className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-lg hover:bg-rose-700 transition-all"
+         >
+           Sisteme Başla
+         </button>
       </div>
     );
   }
 
   return (
     <div className="h-screen bg-[#fcfcfd] flex flex-col overflow-hidden font-sans">
-      <header className="bg-white px-10 py-4 flex justify-between items-center border-b border-rose-100">
-        <div className="flex items-center gap-2 italic font-black text-xl">K-<span className="text-rose-600">AGILE</span></div>
-        <button onClick={() => {localStorage.clear(); window.location.reload();}}><LogOut size={20} className="text-slate-400"/></button>
+      <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100">
+        <div className="text-xl font-black italic tracking-tighter">K-<span className="text-rose-600">AGILE</span></div>
+        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 hover:bg-rose-50 rounded-xl transition-colors">
+          <LogOut size={20} className="text-slate-400 hover:text-rose-600"/>
+        </button>
       </header>
 
-      <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
+      <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start bg-[radial-gradient(#e11d4803_1px,transparent_1px)] [background-size:20px_20px]">
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
           {Object.keys(columns).map(colId => (
             <Column key={colId} id={colId} title={colId} onAddCard={addCard}>
