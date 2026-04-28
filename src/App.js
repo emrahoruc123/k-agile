@@ -8,7 +8,6 @@ import {
   useSensors, 
   DragOverlay,
   pointerWithin,
-  rectIntersection,
   getFirstCollision
 } from '@dnd-kit/core';
 import {
@@ -74,7 +73,6 @@ export default function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // ÇARPIMA ALGILAMA ALGORİTMASI (Sütunlar arası geçişin kalbidir)
   const collisionDetectionStrategy = (args) => {
     const pointerCollisions = pointerWithin(args);
     const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
@@ -159,7 +157,7 @@ export default function App() {
   if (!user) {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Giriş Yap</button>
+        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Sisteme Giriş</button>
       </div>
     );
   }
@@ -230,7 +228,7 @@ export default function App() {
                 {editingCard && (
                     <div className="w-64 border-l border-slate-100 pl-6 flex flex-col">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Görev Geçmişi</h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
                             {(editingCard.logs || []).map((log, i) => (
                                 <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-1 rounded-r-lg">
                                     <p className="font-bold text-slate-700 leading-tight">{log.text}</p>
