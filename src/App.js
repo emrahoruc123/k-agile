@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, X, CheckCircle2, Edit3, Save, Ban } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -50,7 +50,7 @@ export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] });
   const [cards, setCards] = useState({ 
-    'c1': { id: 'c1', title: 'Kart geçmişini görmek için tıklayın!', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
+    'c1': { id: 'c1', title: 'Hoş geldiniz! Geçmişi görmek için tıklayın.', tag: 'SİSTEM', assignee: 'K-Agile', deadline: '2026-12-31', logs: [{text: "Kart oluşturuldu", time: new Date().toLocaleTimeString()}] } 
   });
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
@@ -120,16 +120,16 @@ export default function App() {
   if (!user) {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Giriş Yap</button>
+        <button onClick={() => {setUser('Kullanıcı'); localStorage.setItem('kUser', 'Kullanıcı');}} className="bg-rose-600 text-white px-12 py-4 rounded-3xl font-bold shadow-xl">Sisteme Giriş</button>
       </div>
     );
   }
 
   return (
     <div className="h-screen bg-[#fcfcfd] flex flex-col overflow-hidden font-sans">
-      <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100 shrink-0">
+      <header className="bg-white/80 backdrop-blur-md px-10 py-4 flex justify-between items-center border-b border-rose-100 shrink-0 text-slate-900">
         <div className="flex items-center gap-2 text-xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={24} /> K-<span className="text-rose-600">AGILE</span></div>
-        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600"><LogOut size={20}/></button>
+        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={20}/></button>
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
@@ -144,7 +144,7 @@ export default function App() {
                   })} onEdit={(card) => handleOpenModal(colId, card)} />)}
                 </SortableContext>
               </div>
-              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2"><Plus size={14}/> Yeni Görev</button>
+              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-3 bg-white border border-rose-100 text-rose-600 rounded-2xl text-[10px] font-black uppercase hover:bg-rose-50 transition-all flex items-center justify-center gap-2 font-bold"><Plus size={14}/> Yeni Görev</button>
             </div>
           ))}
           <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border border-rose-300 shadow-2xl scale-105"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
@@ -153,13 +153,12 @@ export default function App() {
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl border border-white relative overflow-hidden flex flex-col max-h-[90vh]">
-            <h2 className="text-2xl font-black italic mb-8">{editingCard ? 'Görevi Düzenle' : 'Yeni Görev Oluştur'}</h2>
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl border border-white flex flex-col max-h-[90vh]">
+            <h2 className="text-2xl font-black italic mb-8">Görev <span className="text-rose-600">Yönetimi</span></h2>
             
             <div className="flex gap-8 overflow-hidden">
-                {/* SOL: FORM */}
                 <div className="flex-1 space-y-4">
-                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10 transition-all" onChange={e => setFormData({...formData, title: e.target.value})}/>
+                    <input type="text" placeholder="Görev Başlığı" value={formData.title} className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-rose-500/10" onChange={e => setFormData({...formData, title: e.target.value})}/>
                     <div className="grid grid-cols-2 gap-4">
                         <select value={formData.tag} className="p-4 bg-slate-50 rounded-2xl outline-none" onChange={e => setFormData({...formData, tag: e.target.value})}>
                             <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option>
@@ -178,22 +177,21 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* SAĞ: GEÇMİŞ (Sadece Düzenleme Modunda) */}
                 {editingCard && (
-                    <div className="w-48 border-l border-slate-100 pl-6 flex flex-col">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Geçmiş</h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                    <div className="w-64 border-l border-slate-100 pl-6 flex flex-col">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock size={12}/> Görev Geçmişi</h3>
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
                             {(editingCard.logs || []).map((log, i) => (
-                                <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2">
+                                <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 bg-rose-50/20 py-1 rounded-r-lg">
                                     <p className="font-bold text-slate-700 leading-tight">{log.text}</p>
-                                    <span className="text-slate-400">{log.time}</span>
+                                    <span className="text-slate-400 font-medium">{log.time}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
             </div>
-        </div>
+          </div>
         </div>
       )}
     </div>
