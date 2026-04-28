@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout, Target, AlertCircle, Sun, Moon } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout, AlertCircle, Sun, Moon } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit, isDark }) => {
@@ -102,6 +102,7 @@ export default function App() {
   }, [boards, user, isDark]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  
   const progress = (() => {
     const b = boards[activeBoard];
     const total = Object.values(b.columns).reduce((a, c) => a + c.length, 0);
@@ -144,7 +145,7 @@ export default function App() {
         </div>
         <div className="hidden md:flex items-center gap-4 flex-1 max-w-md px-10">
            <div className={`flex-1 h-2.5 rounded-full overflow-hidden border transition-colors ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
-              <div className="bg-rose-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]" style={{ width: `${progress}%` }}></div>
+              <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
            </div>
            <span className="text-sm font-black text-rose-600">%{progress}</span>
         </div>
