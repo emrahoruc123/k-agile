@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  DndContext, closestCorners, KeyboardSensor, PointerSensor, 
-  useSensor, useSensors, DragOverlay, pointerWithin, getFirstCollision
+  DndContext, closestCorners, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragOverlay, pointerWithin, getFirstCollision, useDroppable
 } from '@dnd-kit/core';
 import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates, 
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -30,10 +30,28 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
       <div className="flex justify-between items-center pt-3 border-t border-slate-50">
         <div className="flex items-center gap-1.5"><Clock size={12} className="text-rose-500" /><span className="text-[9px] font-bold text-rose-600 uppercase tracking-tighter">{card.deadline || 'Süresiz'}</span></div>
         <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold text-slate-400 uppercase italic">{card.logs?.length || 0} İşlem</span>
-            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-600 border border-white shadow-sm">{(card.assignee || 'K').charAt(0)}</div>
+          <span className="text-[9px] font-bold text-slate-400 uppercase italic">{card.logs?.length || 0} İşlem</span>
+          <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-600 border border-white shadow-sm">{(card.assignee || 'K').charAt(0)}</div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// --- SÜTUN BİLEŞENİ (BOŞ SÜTUN SORUNUNU ÇÖZER) ---
+const DroppableColumn = ({ id, items, title, children }) => {
+  const { setNodeRef } = useDroppable({ id });
+
+  return (
+    <div ref={setNodeRef} className="w-[340px] shrink-0 bg-slate-200/40 rounded-[2.5rem] flex flex-col p-4 h-full border border-slate-200/50">
+      <h2 className="font-black text-slate-500 text-[11px] tracking-[0.2em] uppercase mb-6 px-4 flex justify-between items-center">
+        {title} <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px]">{items.length}</span>
+      </h2>
+      <SortableContext id={id} items={items} strategy={verticalListSortingStrategy}>
+        <div className="flex-1 overflow-y-auto min-h-[150px] px-1">
+          {children}
+        </div>
+      </SortableContext>
     </div>
   );
 };
@@ -70,14 +88,25 @@ export default function App() {
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const sourceCol = Object.keys(columns).find(key => columns[key].includes(active.id));
-    const destCol = (over.id in columns) ? over.id : Object.keys(columns).find(key => columns[key].includes(over.id));
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
+    const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
+
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-    setColumns(prev => ({ ...prev, [sourceCol]: prev[sourceCol].filter(id => id !== active.id), [destCol]: [...prev[destCol], active.id] }));
+
+    setColumns(prev => {
+      const sourceItems = prev[sourceCol].filter(id => id !== activeId);
+      const destItems = [...prev[destCol], activeId];
+      return { ...prev, [sourceCol]: sourceItems, [destCol]: destItems };
+    });
+
     setCards(prev => {
-        const card = prev[active.id];
-        const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
-        return { ...prev, [active.id]: { ...card, logs: [newLog, ...(card.logs || [])] } };
+      const card = prev[activeId];
+      const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
+      return { ...prev, [activeId]: { ...card, logs: [newLog, ...(card.logs || [])] } };
     });
   };
 
@@ -132,17 +161,26 @@ export default function App() {
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
         <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={(e) => setActiveId(e.active.id)} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {Object.keys(columns).map(colId => (
-            <div key={colId} className="w-[340px] shrink-0 bg-slate-200/40 rounded-[2.5rem] flex flex-col p-4 h-full border border-slate-200/50">
-              <h2 className="font-black text-slate-500 text-[11px] tracking-[0.2em] uppercase mb-6 px-4 flex justify-between items-center">{colId} <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px]">{columns[colId].length}</span></h2>
-              <SortableContext id={colId} items={columns[colId]} strategy={verticalListSortingStrategy}>
-                <div className="flex-1 overflow-y-auto min-h-[400px] px-1">
-                   {columns[colId].map(id => (<SortableCard key={id} id={id} card={cards[id]} onDelete={(cardId) => setColumns(prev => { const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc; })} onEdit={(card) => handleOpenModal(colId, card)} />))}
-                </div>
-              </SortableContext>
-              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-4 bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Yeni Görev Ekle</button>
-            </div>
+            <DroppableColumn key={colId} id={colId} title={colId} items={columns[colId]}>
+              {columns[colId].map(id => (
+                <SortableCard 
+                  key={id} 
+                  id={id} 
+                  card={cards[id]} 
+                  onDelete={(cardId) => setColumns(prev => { 
+                    const nc = {...prev}; 
+                    Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); 
+                    return nc; 
+                  })} 
+                  onEdit={(card) => handleOpenModal(colId, card)} 
+                />
+              ))}
+              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-4 w-full bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Yeni Görev Ekle</button>
+            </DroppableColumn>
           ))}
-          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
+          <DragOverlay>
+            {activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}
+          </DragOverlay>
         </DndContext>
       </main>
 
