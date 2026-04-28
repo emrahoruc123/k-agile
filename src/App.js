@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, LayoutPanelLeft, Layout, Target } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -77,6 +77,14 @@ export default function App() {
   const [editingCard, setEditingCard] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
+
+  // İlerleme yüzdesi hesaplama
+  const calculateProgress = () => {
+    const board = boards[activeBoard];
+    const totalCards = Object.values(board.columns).reduce((acc, curr) => acc + curr.length, 0);
+    const completedCards = board.columns['TAMAMLANDI']?.length || 0;
+    return totalCards === 0 ? 0 : Math.round((completedCards / totalCards) * 100);
+  };
 
   useEffect(() => {
     if (user) localStorage.setItem('kBoardsData', JSON.stringify(boards));
@@ -182,14 +190,37 @@ export default function App() {
     );
   }
 
+  const progress = calculateProgress();
+
   return (
     <div className="h-screen bg-[#f8f9fb] flex flex-col font-sans text-slate-900 overflow-hidden">
-      <header className="bg-white px-4 md:px-10 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100 shadow-sm z-50">
+      <header className="bg-white px-4 md:px-10 pt-4 pb-1 md:py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100 shadow-sm z-50">
         <div className="flex items-center justify-between w-full md:w-auto gap-4">
           <div className="flex items-center gap-1 text-xl font-black italic"><CheckCircle2 className="text-rose-600" size={24} /> K-AGILE</div>
+          
+          {/* Mobil İçin İlerleme Özeti */}
+          <div className="md:hidden flex items-center gap-2 px-3 py-1 bg-rose-50 rounded-full border border-rose-100">
+            <Target size={14} className="text-rose-500" />
+            <span className="text-[10px] font-black text-rose-600">%{progress}</span>
+          </div>
+
           <button onClick={() => {localStorage.clear(); window.location.reload();}} className="md:hidden p-2 text-slate-400"><LogOut size={20}/></button>
         </div>
         
+        {/* Masaüstü İlerleme Çubuğu */}
+        <div className="hidden md:flex items-center gap-4 flex-1 max-w-md px-10">
+           <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
+              <div 
+                className="bg-rose-500 h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
+                style={{ width: `${progress}%` }}
+              ></div>
+           </div>
+           <div className="flex flex-col items-start leading-none">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">İlerleme</span>
+              <span className="text-sm font-black text-rose-600">%{progress}</span>
+           </div>
+        </div>
+
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
           <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border shrink-0">
             <Layout size={14} className="ml-2 text-rose-500" />
@@ -203,6 +234,11 @@ export default function App() {
           <button onClick={() => {localStorage.clear(); window.location.reload();}} className="hidden md:block p-2 text-slate-400 hover:text-rose-600"><LogOut size={22}/></button>
         </div>
       </header>
+
+      {/* Mobil İçin İnce Progress Çubuğu (Header Altı) */}
+      <div className="md:hidden w-full bg-slate-100 h-1">
+          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+      </div>
 
       <main className="flex-1 p-4 md:p-10 flex flex-col md:flex-row gap-6 overflow-y-auto md:overflow-x-auto items-start">
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={(e) => setActiveId(e.active.id)} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
@@ -226,28 +262,28 @@ export default function App() {
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-end md:items-center justify-center p-0 md:p-6">
           <div className="bg-white w-full max-w-2xl rounded-t-[2rem] md:rounded-[2.5rem] p-6 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl font-black mb-6 uppercase">{editingCard ? 'Düzenle' : 'Yeni Görev'}</h2>
+            <h2 className="text-xl font-black mb-6 uppercase tracking-tighter">{editingCard ? 'Düzenle' : 'Yeni Görev'}</h2>
             <div className="space-y-4">
-              <input type="text" placeholder="Görev Başlığı" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border" />
+              <input type="text" placeholder="Görev Başlığı" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold">
-                  <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option>
+                <select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold text-slate-600">
+                  <option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="BİLGİ">BİLGİ</option>
                 </select>
-                <input type="text" placeholder="Sorumlu" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border" />
+                <input type="text" placeholder="Sorumlu" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
               </div>
-              <input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border" />
+              <input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-4 bg-slate-50 rounded-xl outline-none border border-slate-100" />
               
               {editingCard && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-xl max-h-40 overflow-y-auto">
+                <div className="mt-4 p-4 bg-slate-50 rounded-xl max-h-40 overflow-y-auto border border-slate-100">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic">İşlem Geçmişi</p>
                   {editingCard.logs?.map((l, i) => (
-                    <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 mb-2"><span className="font-bold">{l.text}</span> - {l.time}</div>
+                    <div key={i} className="text-[10px] border-l-2 border-rose-300 pl-2 mb-2"><span className="font-bold text-slate-700">{l.text}</span> - <span className="text-slate-400">{l.time}</span></div>
                   ))}
                 </div>
               )}
 
               <div className="flex gap-3 pt-4">
-                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest">Kaydet</button>
+                <button onClick={handleSaveCard} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest shadow-lg shadow-rose-200">Kaydet</button>
                 <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest">Kapat</button>
               </div>
             </div>
