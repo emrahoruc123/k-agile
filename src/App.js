@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext, closestCorners, KeyboardSensor, PointerSensor,
   useSensor, useSensors, DragOverlay, pointerWithin, getFirstCollision, useDroppable
@@ -58,32 +58,48 @@ const DroppableColumn = ({ id, items, title, children }) => {
 
 // --- ANA UYGULAMA ---
 export default function App() {
-  const [user, setUser] = useState(localStorage.getItem('kUser') || '');
-  const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': ['c2'], 'TAMAMLANDI': ['c3'] });
-  const [cards, setCards] = useState({ 
+  // --- LOCAL STORAGE YÜKLEME ---
+  const savedUser = localStorage.getItem('kUser') || '';
+  const savedColumns = JSON.parse(localStorage.getItem('kColumns')) || { 'YAPILACAK': ['c1'], 'İŞLEMDE': ['c2'], 'TAMAMLANDI': ['c3'] };
+  const savedCards = JSON.parse(localStorage.getItem('kCards')) || { 
     'c1': { id: 'c1', title: 'Örnek Görev: Tasarımı İncele', tag: 'UI/UX', assignee: 'Can', deadline: '2026-05-01', logs: [{text: "Sistem oluşturdu", time: "10:00"}] },
     'c2': { id: 'c2', title: 'Örnek Görev: API Entegrasyonu', tag: 'DEV', assignee: 'Ece', deadline: '2026-05-05', logs: [{text: "Sistem oluşturdu", time: "10:05"}] },
     'c3': { id: 'c3', title: 'Örnek Görev: Testleri Tamamla', tag: 'TEST', assignee: 'Mert', deadline: '2026-04-30', logs: [{text: "Sistem oluşturdu", time: "10:10"}] }
-  });
+  };
+
+  const [user, setUser] = useState(savedUser);
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [columns, setColumns] = useState(savedColumns);
+  const [cards, setCards] = useState(savedCards);
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
   const [editingCard, setEditingCard] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
+  // --- VERİLERİ OTOMATİK KAYDET ---
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('kColumns', JSON.stringify(columns));
+      localStorage.setItem('kCards', JSON.stringify(cards));
+    }
+  }, [columns, cards, user]);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  // --- GİRİŞ FONKSİYONU ---
   const handleLogin = (e) => {
     e.preventDefault();
-    // Örnek bilgiler: admin / 1234
     if (loginData.username === 'admin' && loginData.password === '1234') {
       setUser(loginData.username);
       localStorage.setItem('kUser', loginData.username);
     } else {
       alert('Hatalı kullanıcı adı veya şifre!');
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.reload();
   };
 
   const collisionDetectionStrategy = (args) => {
@@ -101,16 +117,20 @@ export default function App() {
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const activeId = active.id;
-    const overId = over.id;
-    const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
-    const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
+    const sourceCol = Object.keys(columns).find(key => columns[key].includes(active.id));
+    const destCol = (over.id in columns) ? over.id : Object.keys(columns).find(key => columns[key].includes(over.id));
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-    setColumns(prev => ({ ...prev, [sourceCol]: prev[sourceCol].filter(id => id !== activeId), [destCol]: [...prev[destCol], activeId] }));
+    
+    setColumns(prev => ({ 
+      ...prev, 
+      [sourceCol]: prev[sourceCol].filter(id => id !== active.id), 
+      [destCol]: [...prev[destCol], active.id] 
+    }));
+    
     setCards(prev => {
-      const card = prev[activeId];
+      const card = prev[active.id];
       const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
-      return { ...prev, [activeId]: { ...card, logs: [newLog, ...(card.logs || [])] } };
+      return { ...prev, [active.id]: { ...card, logs: [newLog, ...(card.logs || [])] } };
     });
   };
 
@@ -119,7 +139,10 @@ export default function App() {
     if (over && active.id !== over.id) {
       const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
       if (colId) {
-        setColumns(prev => ({ ...prev, [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) }));
+        setColumns(prev => ({ 
+          ...prev, 
+          [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) 
+        }));
       }
     }
     setActiveId(null);
@@ -150,41 +173,28 @@ export default function App() {
     setShowModal(false);
   };
 
-  // --- LOGIN EKRANI ---
+  // --- GİRİŞ EKRANI ---
   if (!user) {
     return (
       <div className="h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
-        {/* Dekoratif Arka Plan */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-600/20 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
-        
         <form onSubmit={handleLogin} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[3.5rem] w-full max-w-md shadow-2xl relative z-10">
           <div className="flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-rose-600/20">
-              <CheckCircle2 className="text-white" size={32} />
-            </div>
+            <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-rose-600/20"><CheckCircle2 className="text-white" size={32} /></div>
             <h1 className="text-white text-3xl font-black italic tracking-tighter">K-<span className="text-rose-500">AGILE</span></h1>
             <p className="text-slate-400 text-xs mt-2 uppercase tracking-[0.2em] font-bold">Proje Yönetim Paneli</p>
           </div>
-
           <div className="space-y-4">
             <div className="relative">
               <User className="absolute left-5 top-5 text-slate-500" size={20} />
-              <input 
-                type="text" placeholder="Kullanıcı Adı (admin)" 
-                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium"
-                value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})}
-              />
+              <input type="text" placeholder="Kullanıcı Adı" className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium" value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})} />
             </div>
             <div className="relative">
               <Lock className="absolute left-5 top-5 text-slate-500" size={20} />
-              <input 
-                type="password" placeholder="Şifre (1234)" 
-                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium"
-                value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})}
-              />
+              <input type="password" placeholder="Şifre" className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             </div>
-            <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white py-5 rounded-2xl font-black tracking-widest transition-all shadow-xl shadow-rose-600/20 uppercase text-sm">Sisteme Giriş Yap</button>
+            <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white py-5 rounded-2xl font-black tracking-widest transition-all shadow-xl shadow-rose-600/20 uppercase text-sm">Giriş Yap</button>
           </div>
         </form>
       </div>
@@ -198,7 +208,7 @@ export default function App() {
         <div className="flex items-center gap-2 text-2xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={28} /> K-<span className="text-rose-600">AGILE</span></div>
         <div className="flex items-center gap-6">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-r pr-6 border-slate-100">Hoş geldin, {user}</span>
-          <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
+          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
         </div>
       </header>
 
@@ -209,7 +219,10 @@ export default function App() {
               {columns[colId].map(id => (
                 <SortableCard 
                   key={id} id={id} card={cards[id]} 
-                  onDelete={(cardId) => setColumns(prev => { const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc; })} 
+                  onDelete={(cardId) => {
+                    setColumns(prev => { const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc; });
+                    setCards(prev => { const nc = {...prev}; delete nc[cardId]; return nc; });
+                  }} 
                   onEdit={(card) => handleOpenModal(colId, card)} 
                 />
               ))}
@@ -220,7 +233,7 @@ export default function App() {
         </DndContext>
       </main>
 
-      {/* MODAL (Görev Ekle/Düzenle) - Kodun bu kısmı öncekiyle aynıdır */}
+      {/* MODAL (Görev Ekle/Düzenle) */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-3xl rounded-[3.5rem] p-12 shadow-2xl flex flex-col max-h-[85vh] border border-white/20">
