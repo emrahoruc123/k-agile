@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight, History, Lock, User, LayoutPanelLeft } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight, History, Lock, User, LayoutPanelLeft, Layout, ChevronDown } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -22,7 +22,6 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
     >
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors border border-slate-100" title="Düzenle"><Edit3 size={14} /></button>
-        <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-1.5 bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg transition-colors border border-slate-100" title="Geçmiş"><History size={14} /></button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(id); }} className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors border border-slate-100" title="Sil"><Trash2 size={14} /></button>
       </div>
       <div className="flex justify-between items-start mb-3 pr-24"><span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-widest">{card.tag}</span></div>
@@ -49,19 +48,11 @@ const DroppableColumn = ({ id, items, title, children, onDeleteColumn, isSystemC
           {title} <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px]">{items.length}</span>
         </h2>
         {!isSystemColumn && (
-          <button 
-            onClick={() => onDeleteColumn(id)}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-            title="Sütunu Sil"
-          >
-            <Trash2 size={14} />
-          </button>
+          <button onClick={() => onDeleteColumn(id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
         )}
       </div>
       <SortableContext id={id} items={items} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 overflow-y-auto min-h-[150px] px-1">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto min-h-[150px] px-1">{children}</div>
       </SortableContext>
     </div>
   );
@@ -70,145 +61,152 @@ const DroppableColumn = ({ id, items, title, children, onDeleteColumn, isSystemC
 // --- ANA UYGULAMA ---
 export default function App() {
   const systemColumns = ['YAPILACAK', 'İŞLEMDE', 'TAMAMLANDI'];
-
-  const savedUser = localStorage.getItem('kUser') || '';
-  const savedColumns = JSON.parse(localStorage.getItem('kColumns')) || { 'YAPILACAK': ['c1'], 'İŞLEMDE': ['c2'], 'TAMAMLANDI': ['c3'] };
-  const savedCards = JSON.parse(localStorage.getItem('kCards')) || { 
-    'c1': { id: 'c1', title: 'Örnek Görev: Tasarımı İncele', tag: 'UI/UX', assignee: 'Can', deadline: '2026-05-01', logs: [{text: "Sistem oluşturdu", time: "10:00"}] },
-    'c2': { id: 'c2', title: 'Örnek Görev: API Entegrasyonu', tag: 'DEV', assignee: 'Ece', deadline: '2026-05-05', logs: [{text: "Sistem oluşturdu", time: "10:05"}] },
-    'c3': { id: 'c3', title: 'Örnek Görev: Testleri Tamamla', tag: 'TEST', assignee: 'Mert', deadline: '2026-04-30', logs: [{text: "Sistem oluşturdu", time: "10:10"}] }
-  };
-
-  const [user, setUser] = useState(savedUser);
+  
+  // State Tanımları
+  const [user, setUser] = useState(localStorage.getItem('kUser') || '');
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [columns, setColumns] = useState(savedColumns);
-  const [cards, setCards] = useState(savedCards);
+  
+  // Board verilerini yükle
+  const [boards, setBoards] = useState(() => {
+    const saved = localStorage.getItem('kBoardsData');
+    return saved ? JSON.parse(saved) : { 
+      'Genel Pano': { 
+        columns: { 'YAPILACAK': ['c1'], 'İŞLEMDE': [], 'TAMAMLANDI': [] },
+        cards: { 'c1': { id: 'c1', title: 'Hoş Geldiniz! İlk görevinizi ekleyin.', tag: 'BİLGİ', assignee: 'Sistem', deadline: '2026-12-31', logs: [] } }
+      }
+    };
+  });
+  const [activeBoard, setActiveBoard] = useState(Object.keys(boards)[0]);
+  
   const [showModal, setShowModal] = useState(false);
   const [activeCol, setActiveCol] = useState(null);
   const [editingCard, setEditingCard] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
+  // Kayıt işlemi
   useEffect(() => {
     if (user) {
-      localStorage.setItem('kColumns', JSON.stringify(columns));
-      localStorage.setItem('kCards', JSON.stringify(cards));
+      localStorage.setItem('kBoardsData', JSON.stringify(boards));
     }
-  }, [columns, cards, user]);
+  }, [boards, user]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (loginData.username === 'admin' && loginData.password === '1234') {
-      setUser(loginData.username);
-      localStorage.setItem('kUser', loginData.username);
-    } else { alert('Hatalı kullanıcı adı veya şifre!'); }
+  // Board İşlemleri
+  const handleCreateBoard = () => {
+    const name = prompt("Yeni Pano Adı:");
+    if (name && !boards[name]) {
+      setBoards(prev => ({
+        ...prev,
+        [name]: { columns: { 'YAPILACAK': [], 'İŞLEMDE': [], 'TAMAMLANDI': [] }, cards: {} }
+      }));
+      setActiveBoard(name);
+    } else if (boards[name]) { alert("Bu pano zaten mevcut!"); }
   };
 
+  const handleDeleteBoard = () => {
+    if (Object.keys(boards).length <= 1) return alert("Son kalan panoyu silemezsiniz.");
+    if (window.confirm(`${activeBoard} panosunu ve içindeki TÜM görevleri silmek istediğinize emin misiniz?`)) {
+      const remainingBoards = { ...boards };
+      delete remainingBoards[activeBoard];
+      setBoards(remainingBoards);
+      setActiveBoard(Object.keys(remainingBoards)[0]);
+    }
+  };
+
+  // Sütun İşlemleri
   const handleAddColumn = () => {
-    const colName = prompt("Yeni sütun adını giriniz:");
+    const colName = prompt("Yeni Sütun Adı:");
     if (colName) {
-      const upperName = colName.trim().toUpperCase();
-      if (columns[upperName]) {
-        alert("Bu isimde bir sütun zaten mevcut!");
-        return;
-      }
-      setColumns(prev => ({ ...prev, [upperName]: [] }));
+      const upper = colName.trim().toUpperCase();
+      if (boards[activeBoard].columns[upper]) return alert("Sütun mevcut!");
+      setBoards(prev => ({
+        ...prev,
+        [activeBoard]: {
+          ...prev[activeBoard],
+          columns: { ...prev[activeBoard].columns, [upper]: [] }
+        }
+      }));
     }
   };
 
   const handleDeleteColumn = (colId) => {
-    if (columns[colId].length > 0) {
-      alert("İçinde görev olan sütunları silemezsiniz! Önce görevleri taşıyın veya silin.");
-      return;
-    }
-    if (window.confirm(`${colId} sütununu silmek istediğinize emin misiniz?`)) {
-      setColumns(prev => {
-        const newCols = { ...prev };
-        delete newCols[colId];
-        return newCols;
-      });
-    }
+    if (boards[activeBoard].columns[colId].length > 0) return alert("İçinde görev olan sütun silinemez!");
+    setBoards(prev => {
+      const newCols = { ...prev[activeBoard].columns };
+      delete newCols[colId];
+      return { ...prev, [activeBoard]: { ...prev[activeBoard], columns: newCols } };
+    });
   };
 
-  const collisionDetectionStrategy = (args) => {
-    const pointerCollisions = pointerWithin(args);
-    const collisions = pointerCollisions.length > 0 ? pointerCollisions : closestCorners(args);
-    let overId = getFirstCollision(collisions, 'id');
-    if (overId != null) {
-      if (overId in columns) return collisions;
-      const columnId = Object.keys(columns).find((key) => columns[key].includes(overId));
-      if (columnId) overId = columnId;
-    }
-    return collisions;
-  };
-
+  // Drag & Drop Mantığı
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-    const sourceCol = Object.keys(columns).find(key => columns[key].includes(active.id));
-    const destCol = (over.id in columns) ? over.id : Object.keys(columns).find(key => columns[key].includes(over.id));
+    const sourceCol = Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(active.id));
+    const destCol = (over.id in boards[activeBoard].columns) ? over.id : Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(over.id));
+    
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-    setColumns(prev => ({ ...prev, [sourceCol]: prev[sourceCol].filter(id => id !== active.id), [destCol]: [...prev[destCol], active.id] }));
-    setCards(prev => {
-      const card = prev[active.id];
+
+    setBoards(prev => {
+      const currentBoard = prev[activeBoard];
+      const newCols = { ...currentBoard.columns };
+      newCols[sourceCol] = newCols[sourceCol].filter(id => id !== active.id);
+      newCols[destCol] = [...newCols[destCol], active.id];
+      
+      const newCards = { ...currentBoard.cards };
       const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
-      return { ...prev, [active.id]: { ...card, logs: [newLog, ...(card.logs || [])] } };
+      newCards[active.id] = { ...newCards[active.id], logs: [newLog, ...(newCards[active.id].logs || [])] };
+
+      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols, cards: newCards } };
     });
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
+      const colId = Object.keys(boards[activeBoard].columns).find(key => boards[activeBoard].columns[key].includes(active.id));
       if (colId) {
-        setColumns(prev => ({ ...prev, [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) }));
+        setBoards(prev => {
+          const currentBoard = prev[activeBoard];
+          const newColItems = arrayMove(currentBoard.columns[colId], currentBoard.columns[colId].indexOf(active.id), currentBoard.columns[colId].indexOf(over.id));
+          return { ...prev, [activeBoard]: { ...currentBoard, columns: { ...currentBoard.columns, [colId]: newColItems } } };
+        });
       }
     }
     setActiveId(null);
   };
 
-  const handleOpenModal = (colId, card = null) => {
-    setActiveCol(colId);
-    if (card) {
-      setEditingCard(card);
-      setFormData({ title: card.title, tag: card.tag, assignee: card.assignee, deadline: card.deadline });
-    } else {
-      setEditingCard(null);
-      setFormData({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
-    }
-    setShowModal(true);
-  };
-
-  const handleSave = () => {
+  const handleSaveCard = () => {
     if (!formData.title) return;
     const now = new Date().toLocaleTimeString().slice(0,5);
-    if (editingCard) {
-      setCards(prev => ({ ...prev, [editingCard.id]: { ...formData, id: editingCard.id, logs: [{text: "Düzenlendi", time: now}, ...(editingCard.logs || [])] } }));
-    } else {
-      const newId = `card-${Date.now()}`;
-      setCards(prev => ({ ...prev, [newId]: { ...formData, id: newId, logs: [{text: "Oluşturuldu", time: now}] } }));
-      setColumns(prev => ({ ...prev, [activeCol]: [...prev[activeCol], newId] }));
-    }
+    setBoards(prev => {
+      const currentBoard = prev[activeBoard];
+      const newCards = { ...currentBoard.cards };
+      const newCols = { ...currentBoard.columns };
+      
+      if (editingCard) {
+        newCards[editingCard.id] = { ...formData, id: editingCard.id, logs: [{text: "Düzenlendi", time: now}, ...(editingCard.logs || [])] };
+      } else {
+        const newId = `card-${Date.now()}`;
+        newCards[newId] = { ...formData, id: newId, logs: [{text: "Oluşturuldu", time: now}] };
+        newCols[activeCol] = [...newCols[activeCol], newId];
+      }
+      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols, cards: newCards } };
+    });
     setShowModal(false);
   };
 
   if (!user) {
     return (
       <div className="h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-600/20 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
-        <form onSubmit={handleLogin} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[3.5rem] w-full max-w-md shadow-2xl relative z-10">
-          <div className="flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-rose-600/20"><CheckCircle2 className="text-white" size={32} /></div>
-            <h1 className="text-white text-3xl font-black italic tracking-tighter">K-<span className="text-rose-500">AGILE</span></h1>
-            <p className="text-slate-400 text-xs mt-2 uppercase tracking-[0.2em] font-bold">Proje Yönetim Paneli</p>
-          </div>
+        <form onSubmit={(e) => { e.preventDefault(); if(loginData.username==='admin' && loginData.password==='1234'){ setUser('admin'); localStorage.setItem('kUser','admin'); }}} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[3.5rem] w-full max-w-md shadow-2xl relative z-10">
+          <div className="flex flex-col items-center mb-10"><div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-4"><CheckCircle2 className="text-white" size={32} /></div><h1 className="text-white text-3xl font-black italic">K-<span className="text-rose-500">AGILE</span></h1></div>
           <div className="space-y-4">
-            <div className="relative"><User className="absolute left-5 top-5 text-slate-500" size={20} /><input type="text" placeholder="Kullanıcı Adı" className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium" value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})} /></div>
-            <div className="relative"><Lock className="absolute left-5 top-5 text-slate-500" size={20} /><input type="password" placeholder="Şifre" className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} /></div>
-            <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white py-5 rounded-2xl font-black tracking-widest transition-all shadow-xl shadow-rose-600/20 uppercase text-sm">Giriş Yap</button>
+            <input type="text" placeholder="Kullanıcı Adı" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-rose-500" onChange={e => setLoginData({...loginData, username: e.target.value})} />
+            <input type="password" placeholder="Şifre" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-rose-500" onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            <button type="submit" className="w-full bg-rose-600 text-white py-5 rounded-2xl font-black tracking-widest uppercase text-sm">Giriş Yap</button>
           </div>
         </form>
       </div>
@@ -218,65 +216,85 @@ export default function App() {
   return (
     <div className="h-screen bg-[#f8f9fb] flex flex-col overflow-hidden font-sans text-slate-900">
       <header className="bg-white px-10 py-5 flex justify-between items-center border-b border-slate-100 shadow-sm z-50">
-        <div className="flex items-center gap-2 text-2xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={28} /> K-<span className="text-rose-600">AGILE</span></div>
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2 text-2xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={28} /> K-AGILE</div>
+          
+          {/* Board Selector */}
+          <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm text-[11px] font-black text-slate-600 uppercase tracking-widest">
+              <Layout size={14} className="text-rose-500" />
+              <select value={activeBoard} onChange={(e) => setActiveBoard(e.target.value)} className="bg-transparent outline-none cursor-pointer">
+                {Object.keys(boards).map(name => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </div>
+            <button onClick={handleCreateBoard} className="p-2 hover:bg-rose-500 hover:text-white text-slate-400 rounded-xl transition-all" title="Yeni Pano"><Plus size={18}/></button>
+            <button onClick={handleDeleteBoard} className="p-2 hover:bg-rose-50 text-rose-500 rounded-xl transition-all" title="Panoyu Sil"><Trash2 size={18}/></button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-4">
-          <button onClick={handleAddColumn} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-slate-900/10"><LayoutPanelLeft size={16}/> Sütun Ekle</button>
+          <button onClick={handleAddColumn} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg"><LayoutPanelLeft size={16}/> Sütun Ekle</button>
           <div className="w-[1px] h-8 bg-slate-100 mx-2"></div>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-r pr-6 border-slate-100">Hoş geldin, {user}</span>
           <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
         </div>
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
-        <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={(e) => setActiveId(e.active.id)} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-          {Object.keys(columns).map(colId => (
+        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={(e) => setActiveId(e.active.id)} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+          {Object.keys(boards[activeBoard].columns).map(colId => (
             <DroppableColumn 
-              key={colId} id={colId} title={colId} items={columns[colId]} 
+              key={colId} id={colId} title={colId} 
+              items={boards[activeBoard].columns[colId]} 
               onDeleteColumn={handleDeleteColumn}
               isSystemColumn={systemColumns.includes(colId)}
             >
-              {columns[colId].map(id => (
+              {boards[activeBoard].columns[colId].map(id => (
                 <SortableCard 
-                  key={id} id={id} card={cards[id]} 
+                  key={id} id={id} card={boards[activeBoard].cards[id]} 
                   onDelete={(cardId) => {
-                    setColumns(prev => { const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc; });
-                    setCards(prev => { const nc = {...prev}; delete nc[cardId]; return nc; });
+                    setBoards(prev => {
+                      const current = prev[activeBoard];
+                      const newCols = { ...current.columns };
+                      Object.keys(newCols).forEach(k => newCols[k] = newCols[k].filter(i => i !== cardId));
+                      const newCards = { ...current.cards };
+                      delete newCards[cardId];
+                      return { ...prev, [activeBoard]: { ...current, columns: newCols, cards: newCards } };
+                    });
                   }} 
-                  onEdit={(card) => handleOpenModal(colId, card)} 
+                  onEdit={(card) => { setActiveCol(colId); setEditingCard(card); setFormData({title: card.title, tag: card.tag, assignee: card.assignee, deadline: card.deadline}); setShowModal(true); }} 
                 />
               ))}
-              <button onClick={() => handleOpenModal(colId)} className="mt-4 py-4 w-full bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Görev Ekle</button>
+              <button onClick={() => { setActiveCol(colId); setEditingCard(null); setFormData({title: '', tag: 'GÖREV', assignee: '', deadline: ''}); setShowModal(true); }} className="mt-4 py-4 w-full bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Görev Ekle</button>
             </DroppableColumn>
           ))}
-          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
+          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{boards[activeBoard].cards[activeId]?.title}</h3></div> : null}</DragOverlay>
         </DndContext>
       </main>
 
-      {/* MODAL (Görev Ekle/Düzenle) */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-3xl rounded-[3.5rem] p-12 shadow-2xl flex flex-col max-h-[85vh] border border-white/20">
-            <h2 className="text-3xl font-black italic mb-10 flex items-center gap-3">{editingCard ? <Edit3 className="text-rose-600" /> : <Plus className="text-rose-600" />}{editingCard ? 'GÖREVİ DÜZENLE' : 'YENİ GÖREV'}</h2>
-            <div className="flex gap-12 overflow-hidden">
-                <div className="flex-1 space-y-6">
-                    <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase tracking-widest">Görev Tanımı</label><input type="text" placeholder="Örn: Tasarımı İncele..." value={formData.title} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20 text-slate-700 font-medium" onChange={e => setFormData({...formData, title: e.target.value})}/></div>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase tracking-widest">Kategori</label><select value={formData.tag} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none font-bold text-slate-600" onChange={e => setFormData({...formData, tag: e.target.value})}><option value="GÖREV">GENEL GÖREV</option><option value="UI/UX">UI/UX TASARIM</option><option value="DEV">YAZILIM GELİŞTİRME</option><option value="TEST">QA / TEST</option></select></div>
-                        <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase tracking-widest">Sorumlu</label><input type="text" placeholder="İsim giriniz..." value={formData.assignee} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20 text-slate-700 font-medium" onChange={e => setFormData({...formData, assignee: e.target.value})}/></div>
-                    </div>
-                    <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase tracking-widest">Teslim Tarihi</label><input type="date" value={formData.deadline} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none text-slate-600 font-bold" onChange={e => setFormData({...formData, deadline: e.target.value})}/></div>
-                    <div className="flex gap-4 pt-6"><button onClick={handleSave} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all flex items-center justify-center gap-3 tracking-widest"><Save size={20}/> KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem] hover:bg-slate-200 transition-all flex items-center justify-center gap-3 tracking-widest"><Ban size={20}/> İPTAL</button></div>
+          <div className="bg-white w-full max-w-3xl rounded-[3.5rem] p-12 shadow-2xl flex flex-col max-h-[85vh]">
+            <h2 className="text-3xl font-black italic mb-10 flex items-center gap-3 text-slate-800 uppercase tracking-tighter">{editingCard ? 'DÜZENLE' : 'YENİ GÖREV'}</h2>
+            <div className="flex gap-12">
+              <div className="flex-1 space-y-6">
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20" /></div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Kategori</label><select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none font-bold text-slate-600"><option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option></select></div>
+                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none focus:ring-2 ring-rose-500/20" /></div>
                 </div>
-                {editingCard && (
-                    <div className="w-72 border-l border-slate-100 pl-10 flex flex-col">
-                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><History size={16} className="text-rose-500"/> İşlem Kaydı</h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-4 scrollbar-hide">
-                            {(editingCard.logs || []).map((log, i) => (
-                                <div key={i} className="text-[11px] border-l-2 border-rose-300 pl-4 py-1 relative"><div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-rose-400"></div><p className="font-bold text-slate-700 leading-tight flex items-center gap-2 uppercase tracking-tighter">{log.text.includes('➔') ? <span className="flex items-center gap-1 text-[10px]"><ArrowRight size={12} className="text-rose-500" /> {log.text}</span> : log.text}</p><span className="text-slate-400 font-bold text-[9px]">{log.time}</span></div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
+                <div className="flex gap-4 pt-6"><button onClick={handleSaveCard} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all flex items-center justify-center gap-3"><Save size={20}/> KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem] hover:bg-slate-200 transition-all flex items-center justify-center gap-3"><Ban size={20}/> İPTAL</button></div>
+              </div>
+              {editingCard && (
+                <div className="w-72 border-l border-slate-100 pl-10 flex flex-col">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><History size={16} className="text-rose-500"/> Geçmiş</h3>
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-4">
+                    {(editingCard.logs || []).map((log, i) => (
+                      <div key={i} className="text-[11px] border-l-2 border-rose-300 pl-4 py-1 relative"><div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-rose-400"></div><p className="font-bold text-slate-700">{log.text}</p><span className="text-slate-400 text-[9px]">{log.time}</span></div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
