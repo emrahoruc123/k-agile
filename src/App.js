@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, History, LayoutPanelLeft, Layout } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, History, LayoutPanelLeft, Layout } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -127,7 +127,7 @@ export default function App() {
     setBoards(prev => {
       const newCols = { ...prev[activeBoard].columns };
       delete newCols[colId];
-      return { ...prev, [activeBoard]: { ...prev[activeBoard], columns: newCols } };
+      return { ...prev, [activeBoard]: { ...currentBoard, columns: newCols } };
     });
   };
 
@@ -258,18 +258,18 @@ export default function App() {
             <h2 className="text-3xl font-black italic mb-10 text-slate-800 uppercase tracking-tighter">{editingCard ? 'DÜZENLE' : 'YENİ GÖREV'}</h2>
             <div className="flex gap-12 overflow-hidden">
               <div className="flex-1 space-y-6">
-                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Görev Tanımı</label><input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
                 <div className="grid grid-cols-2 gap-6">
                   <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Kategori</label><select value={formData.tag} onChange={e => setFormData({...formData, tag: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none font-bold text-slate-600"><option value="GÖREV">GÖREV</option><option value="UI/UX">UI/UX</option><option value="DEV">DEV</option><option value="TEST">TEST</option></select></div>
-                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
+                  <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Sorumlu</label><input type="text" value={formData.assignee} onChange={e => setFormData({...formData, assignee: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
                 </div>
-                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase">Teslim Tarihi</label><input type="date" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} className="w-full p-5 bg-slate-50 rounded-[1.5rem] outline-none border border-slate-100" /></div>
                 <div className="flex gap-4 pt-6"><button onClick={handleSaveCard} className="flex-[2] bg-rose-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-rose-700 transition-all">KAYDET</button><button onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[1.5rem]">İPTAL</button></div>
               </div>
               {editingCard && (
                 <div className="w-72 border-l border-slate-100 pl-10 flex flex-col">
                   <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><History size={16}/> Geçmiş</h3>
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-4 scrollbar-hide">
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-4">
                     {(editingCard.logs || []).map((log, i) => (
                       <div key={i} className="text-[11px] border-l-2 border-rose-300 pl-4 py-1 relative"><div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-rose-400"></div><p className="font-bold text-slate-700">{log.text}</p><span className="text-slate-400 text-[9px]">{log.time}</span></div>
                     ))}
