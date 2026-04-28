@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight, History } from 'lucide-react';
+import { LogOut, Plus, Trash2, Clock, CheckCircle2, Edit3, Save, Ban, ArrowRight, History, Lock, User } from 'lucide-react';
 
 // --- KART BİLEŞENİ ---
 const SortableCard = ({ id, card, onDelete, onEdit }) => {
@@ -38,7 +38,7 @@ const SortableCard = ({ id, card, onDelete, onEdit }) => {
   );
 };
 
-// --- SÜTUN BİLEŞENİ (BOŞ SÜTUN SORUNUNU ÇÖZER) ---
+// --- SÜTUN BİLEŞENİ ---
 const DroppableColumn = ({ id, items, title, children }) => {
   const { setNodeRef } = useDroppable({ id });
 
@@ -59,6 +59,7 @@ const DroppableColumn = ({ id, items, title, children }) => {
 // --- ANA UYGULAMA ---
 export default function App() {
   const [user, setUser] = useState(localStorage.getItem('kUser') || '');
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [columns, setColumns] = useState({ 'YAPILACAK': ['c1'], 'İŞLEMDE': ['c2'], 'TAMAMLANDI': ['c3'] });
   const [cards, setCards] = useState({ 
     'c1': { id: 'c1', title: 'Örnek Görev: Tasarımı İncele', tag: 'UI/UX', assignee: 'Can', deadline: '2026-05-01', logs: [{text: "Sistem oluşturdu", time: "10:00"}] },
@@ -72,6 +73,18 @@ export default function App() {
   const [formData, setFormData] = useState({ title: '', tag: 'GÖREV', assignee: '', deadline: '' });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  // --- GİRİŞ FONKSİYONU ---
+  const handleLogin = (e) => {
+    e.preventDefault();
+    // Örnek bilgiler: admin / 1234
+    if (loginData.username === 'admin' && loginData.password === '1234') {
+      setUser(loginData.username);
+      localStorage.setItem('kUser', loginData.username);
+    } else {
+      alert('Hatalı kullanıcı adı veya şifre!');
+    }
+  };
 
   const collisionDetectionStrategy = (args) => {
     const pointerCollisions = pointerWithin(args);
@@ -88,21 +101,12 @@ export default function App() {
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!over) return;
-
     const activeId = active.id;
     const overId = over.id;
-
     const sourceCol = Object.keys(columns).find(key => columns[key].includes(activeId));
     const destCol = (overId in columns) ? overId : Object.keys(columns).find(key => columns[key].includes(overId));
-
     if (!sourceCol || !destCol || sourceCol === destCol) return;
-
-    setColumns(prev => {
-      const sourceItems = prev[sourceCol].filter(id => id !== activeId);
-      const destItems = [...prev[destCol], activeId];
-      return { ...prev, [sourceCol]: sourceItems, [destCol]: destItems };
-    });
-
+    setColumns(prev => ({ ...prev, [sourceCol]: prev[sourceCol].filter(id => id !== activeId), [destCol]: [...prev[destCol], activeId] }));
     setCards(prev => {
       const card = prev[activeId];
       const newLog = { text: `${sourceCol} ➔ ${destCol}`, time: new Date().toLocaleTimeString().slice(0,5) };
@@ -115,10 +119,7 @@ export default function App() {
     if (over && active.id !== over.id) {
       const colId = Object.keys(columns).find(key => columns[key].includes(active.id));
       if (colId) {
-        setColumns(prev => ({
-          ...prev,
-          [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id))
-        }));
+        setColumns(prev => ({ ...prev, [colId]: arrayMove(prev[colId], prev[colId].indexOf(active.id), prev[colId].indexOf(over.id)) }));
       }
     }
     setActiveId(null);
@@ -149,13 +150,56 @@ export default function App() {
     setShowModal(false);
   };
 
-  if (!user) return <div className="h-screen bg-slate-50 flex items-center justify-center"><button onClick={() => {setUser('Admin'); localStorage.setItem('kUser', 'Admin');}} className="bg-rose-600 text-white px-10 py-4 rounded-full font-bold shadow-2xl">Sistemi Başlat</button></div>;
+  // --- LOGIN EKRANI ---
+  if (!user) {
+    return (
+      <div className="h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Dekoratif Arka Plan */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-600/20 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
+        
+        <form onSubmit={handleLogin} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[3.5rem] w-full max-w-md shadow-2xl relative z-10">
+          <div className="flex flex-col items-center mb-10">
+            <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-rose-600/20">
+              <CheckCircle2 className="text-white" size={32} />
+            </div>
+            <h1 className="text-white text-3xl font-black italic tracking-tighter">K-<span className="text-rose-500">AGILE</span></h1>
+            <p className="text-slate-400 text-xs mt-2 uppercase tracking-[0.2em] font-bold">Proje Yönetim Paneli</p>
+          </div>
 
+          <div className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-5 top-5 text-slate-500" size={20} />
+              <input 
+                type="text" placeholder="Kullanıcı Adı (admin)" 
+                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium"
+                value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})}
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-5 top-5 text-slate-500" size={20} />
+              <input 
+                type="password" placeholder="Şifre (1234)" 
+                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-rose-500 text-white transition-all font-medium"
+                value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})}
+              />
+            </div>
+            <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white py-5 rounded-2xl font-black tracking-widest transition-all shadow-xl shadow-rose-600/20 uppercase text-sm">Sisteme Giriş Yap</button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // --- ANA PANEL ---
   return (
     <div className="h-screen bg-[#f8f9fb] flex flex-col overflow-hidden font-sans text-slate-900">
       <header className="bg-white px-10 py-5 flex justify-between items-center border-b border-slate-100 shadow-sm z-50">
         <div className="flex items-center gap-2 text-2xl font-black italic tracking-tighter"><CheckCircle2 className="text-rose-600" size={28} /> K-<span className="text-rose-600">AGILE</span></div>
-        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
+        <div className="flex items-center gap-6">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-r pr-6 border-slate-100">Hoş geldin, {user}</span>
+          <button onClick={() => {localStorage.clear(); window.location.reload();}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><LogOut size={22}/></button>
+        </div>
       </header>
 
       <main className="flex-1 p-10 flex gap-8 overflow-x-auto items-start">
@@ -164,26 +208,19 @@ export default function App() {
             <DroppableColumn key={colId} id={colId} title={colId} items={columns[colId]}>
               {columns[colId].map(id => (
                 <SortableCard 
-                  key={id} 
-                  id={id} 
-                  card={cards[id]} 
-                  onDelete={(cardId) => setColumns(prev => { 
-                    const nc = {...prev}; 
-                    Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); 
-                    return nc; 
-                  })} 
+                  key={id} id={id} card={cards[id]} 
+                  onDelete={(cardId) => setColumns(prev => { const nc = {...prev}; Object.keys(nc).forEach(k => nc[k] = nc[k].filter(i => i !== cardId)); return nc; })} 
                   onEdit={(card) => handleOpenModal(colId, card)} 
                 />
               ))}
               <button onClick={() => handleOpenModal(colId)} className="mt-4 py-4 w-full bg-white hover:bg-rose-600 hover:text-white text-rose-600 rounded-[1.5rem] text-[11px] font-black uppercase transition-all shadow-sm flex items-center justify-center gap-2"><Plus size={16}/> Yeni Görev Ekle</button>
             </DroppableColumn>
           ))}
-          <DragOverlay>
-            {activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}
-          </DragOverlay>
+          <DragOverlay>{activeId ? <div className="bg-white p-5 rounded-[2rem] border-2 border-rose-400 shadow-2xl opacity-90 w-[300px]"><h3 className="font-bold text-slate-800 text-sm">{cards[activeId].title}</h3></div> : null}</DragOverlay>
         </DndContext>
       </main>
 
+      {/* MODAL (Görev Ekle/Düzenle) - Kodun bu kısmı öncekiyle aynıdır */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-3xl rounded-[3.5rem] p-12 shadow-2xl flex flex-col max-h-[85vh] border border-white/20">
